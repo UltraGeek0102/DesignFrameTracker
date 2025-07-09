@@ -6,6 +6,13 @@ from datetime import datetime
 
 DB_FILE = "saree.db"
 
+st.set_page_config(
+    page_title="Jubilee Frame Tracker",
+    page_icon="favicon.ico",  # reference your .ico file
+    layout="wide"
+)
+
+
 # ---------- CSS for Mobile Padding ----------
 st.markdown("""
     <style>
@@ -29,6 +36,16 @@ def status_color(status):
 def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
+
+     # Top toggle + logo + title
+    col1, col2, col3 = st.columns([1, 1.5, 6])
+    with col1:
+        if st.button("☰"):
+            st.session_state.show_sidebar = not st.session_state.show_sidebar
+    with col2:
+        st.image("logo.png", width=48)
+    with col3:
+        st.title(f"🧵 {label}")
 
     # Top toggle + title
     col1, col2 = st.columns([1, 6])
@@ -153,6 +170,7 @@ def export_to_excel(table_name, label):
 st.set_page_config(page_title="Jubilee Frame Tracker", layout="wide")
 
 # Sidebar Navigation
+st.sidebar.image("logo.png", width=80)
 st.sidebar.title("Jubilee Inventory")
 page = st.sidebar.radio("Navigation", ["Design Frame Tracker", "BP Frame Tracker"])
 
