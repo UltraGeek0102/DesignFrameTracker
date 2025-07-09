@@ -18,7 +18,6 @@ if st.session_state.get("rerun_needed", False):
     st.session_state["rerun_needed"] = False
     st.experimental_rerun()
 
-
 # ---------- CSS for Mobile Padding ----------
 st.markdown("""
     <style>
@@ -49,7 +48,7 @@ def render_table_page(table_name, label):
         if st.button("☰"):
             st.session_state.show_sidebar = not st.session_state.show_sidebar
     with col2:
-        st.image("logo.png", width=120)
+        st.image("logo.png", width=32)
     with col3:
         st.markdown(f"<h1 style='margin-top: 0.6rem;'>{label}</h1>", unsafe_allow_html=True)
 
@@ -63,7 +62,8 @@ def render_table_page(table_name, label):
                 if new_name.strip():
                     success, msg = add_frame(table_name, new_name.strip(), new_status)
                     st.success(msg) if success else st.warning(msg)
-                    st.session_state.rerun_needed = True
+                    st.session_state["rerun_needed"] = True
+                    st.stop()
                 else:
                     st.warning("Frame name is required.")
 
@@ -101,12 +101,14 @@ def render_table_page(table_name, label):
                     if st.form_submit_button("💾 Save Changes"):
                         update_frame(table_name, fid, new_name, new_status)
                         st.success("Updated successfully.")
-                        st.session_state.rerun_needed = True
+                        st.session_state["rerun_needed"] = True
+                        st.stop()
                 with col_delete:
                     if st.form_submit_button("🗑️ Delete Frame"):
                         delete_frame(table_name, fid)
                         st.warning(f"Deleted: {name}")
-                        st.session_state.rerun_needed = True
+                        st.session_state["rerun_needed"] = True
+                        st.stop()
 
     # Export to Excel
     if st.button("📤 Export to Excel", key=f"export_{table_name}"):
@@ -189,5 +191,3 @@ if page == "Design Frame Tracker":
     render_table_page("design_frames", "Design Frame Tracker")
 elif page == "BP Frame Tracker":
     render_table_page("bp_frames", "BP Frame Tracker")
-
-
