@@ -41,10 +41,26 @@ st.markdown("""
         .status-inrepair {
             background-color: orange;
         }
-        .action-button {
-            color: blue;
-            cursor: pointer;
-            text-decoration: underline;
+        .scroll-table {
+            overflow-x: auto;
+            max-height: 400px;
+            border: 1px solid #444;
+        }
+        table.custom-table {
+            border-collapse: collapse;
+            width: 100%;
+            color: white;
+        }
+        table.custom-table th, table.custom-table td {
+            border: 1px solid #555;
+            padding: 8px;
+            text-align: center;
+        }
+        table.custom-table th {
+            background-color: #222;
+        }
+        table.custom-table td button {
+            margin: 0 2px;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -62,9 +78,6 @@ def status_tag(status):
 def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
-
-    if "edit_row" not in st.session_state:
-        st.session_state.edit_row = None
 
     if "success_message" in st.session_state:
         st.success(st.session_state.pop("success_message"))
@@ -102,49 +115,58 @@ def render_table_page(table_name, label):
         status_filter = st.selectbox("Filter by Status", ["All", "InHouse", "OutHouse", "InRepair"], key=f"filter_{table_name}")
 
     rows = get_frames(table_name)
-
     if search_query:
         rows = [r for r in rows if fuzz.partial_ratio(search_query.lower(), r[1].lower()) > 70]
-
     if status_filter != "All":
         rows = [r for r in rows if r[2] == status_filter]
 
     st.write(f"### 📋 {label} Table View ({len(rows)} items)")
 
-    for fid, name, status in rows:
-        if st.session_state.edit_row == fid:
-            with st.form(f"edit_form_{table_name}_{fid}"):
-                new_name = st.text_input("Edit Frame Name", name, key=f"edit_name_{table_name}_{fid}")
-                new_status = st.selectbox("Edit Status", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), key=f"edit_status_{table_name}_{fid}")
-                col_edit, col_cancel = st.columns(2)
-                with col_edit:
-                    if st.form_submit_button("💾 Save"):
-                        update_frame(table_name, fid, new_name, new_status)
-                        st.session_state["success_message"] = "Updated successfully."
-                        st.session_state["rerun_needed"] = True
-                        st.stop()
-                with col_cancel:
-                    if st.form_submit_button("❌ Cancel"):
-                        st.session_state.edit_row = None
-                        st.experimental_rerun()
-        else:
-            col1, col2, col3 = st.columns([4, 2, 2])
-            col1.markdown(f"**{name}**")
-            col2.markdown(status_tag(status), unsafe_allow_html=True)
-            col3.markdown(f"<span class='action-button' onclick='window.location.reload();'>Edit</span> | <span class='action-button' onclick='window.location.reload();'>Delete</span>", unsafe_allow_html=True)
-            if col3.button("Edit", key=f"edit_btn_{fid}"):
-                st.session_state.edit_row = fid
-                st.experimental_rerun()
-            if col3.button("Delete", key=f"delete_btn_{fid}"):
-                delete_frame(table_name, fid)
-                st.session_state["success_message"] = f"Deleted: {name}"
-                st.session_state["rerun_needed"] = True
-                st.stop()
+    if rows:
+        st.markdown("<div class='scroll-table'><table class='custom-table'>", unsafe_allow_html=True)
+        st.markdown("<thead><tr><th>Frame Name</th><th>Status</th><th>Actions</th></tr></thead><tbody>", unsafe_allow_html=True)
+        for fid, name, status in rows:
+            with st.container():
+                col1, col2 = st.columns([1, 1])
+                edit_key = f"edit_{fid}_{table_name}"
+                delete_key = f"delete_{fid}_{table_name}"
+
+                edit_form = f"""
+                <form action="#" method="post">
+                    <input type="submit" name="{edit_key}" value="Edit">
+                    <input type="submit" name="{delete_key}" value="Delete">
+                </form>
+                """
+                st.markdown(f"<tr><td>{name}</td><td>{status_tag(status)}</td><td>", unsafe_allow_html=True)
+                with st.expander("Edit/Delete", expanded=False):
+                    with st.form(f"edit_form_{table_name}_{fid}", clear_on_submit=False):
+                        new_name = st.text_input("Edit Frame Name", name, key=f"edit_name_{table_name}_{fid}")
+                        new_status = st.selectbox("Edit Status", ["InHouse", "OutHouse", "InRepair"],
+                                                  index=["InHouse", "OutHouse", "InRepair"].index(status),
+                                                  key=f"edit_status_{table_name}_{fid}")
+                        col_edit, col_delete = st.columns(2)
+                        with col_edit:
+                            if st.form_submit_button("💾 Save Changes"):
+                                update_frame(table_name, fid, new_name, new_status)
+                                st.session_state["success_message"] = "Updated successfully."
+                                st.session_state["rerun_needed"] = True
+                                st.stop()
+                        with col_delete:
+                            if st.form_submit_button("🗑️ Delete Frame"):
+                                delete_frame(table_name, fid)
+                                st.session_state["success_message"] = f"Deleted: {name}"
+                                st.session_state["rerun_needed"] = True
+                                st.stop()
+                st.markdown("</td></tr>", unsafe_allow_html=True)
+        st.markdown("</tbody></table></div>", unsafe_allow_html=True)
+    else:
+        st.info("No data available.")
 
     if st.button("📤 Export to Excel", key=f"export_{table_name}"):
         path = export_to_excel(table_name, label)
         with open(path, "rb") as f:
-            st.download_button("Download Excel", data=f, file_name=os.path.basename(path), mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            st.download_button("Download Excel", data=f, file_name=os.path.basename(path),
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # ---------- DATABASE FUNCTIONS ----------
 
