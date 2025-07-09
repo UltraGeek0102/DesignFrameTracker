@@ -20,6 +20,14 @@ st.markdown("""
             .block-container {
                 padding: 1rem !important;
             }
+            .scroll-table {
+                max-height: 300px !important;
+                overflow-x: scroll;
+                overflow-y: scroll;
+            }
+            .custom-table td input, .custom-table td select {
+                width: 100% !important;
+            }
         }
         .status-tag {
             color: white;
@@ -79,7 +87,7 @@ def render_table_page(table_name, label):
         if st.button("☰"):
             st.session_state.show_sidebar = not st.session_state.show_sidebar
     with col2:
-        st.image("logo.png", width=120)
+        st.image("logo.png", width=32)
     with col3:
         st.markdown(f"<h1 style='margin-top: 0.6rem;'>{label}</h1>", unsafe_allow_html=True)
 
@@ -96,7 +104,7 @@ def render_table_page(table_name, label):
                     if success:
                         st.session_state.pop(name_key, None)
                         st.session_state.pop(status_key, None)
-                        st.rerun()  # Updated rerun method
+                        st.rerun()
                     else:
                         st.warning(msg)
                 else:
@@ -141,18 +149,15 @@ def render_table_page(table_name, label):
         for fid, name, status in paginated_rows:
             with st.form(f"action_form_{table_name}_{fid}"):
                 st.markdown(f"<tr><td>{name}</td><td>{status_tag(status)}</td><td>", unsafe_allow_html=True)
-                edit_col, delete_col = st.columns([1, 1])
-                with edit_col:
-                    new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{fid}_{table_name}")
-                with delete_col:
-                    new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{fid}_{table_name}")
-                save, delete = st.columns([1, 1])
-                with save:
+                new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{fid}_{table_name}")
+                new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{fid}_{table_name}")
+                col1, col2 = st.columns([1, 1])
+                with col1:
                     if st.form_submit_button("💾 Save"):
                         update_frame(table_name, fid, new_name, new_status)
                         st.session_state["success_message"] = "Updated successfully."
                         st.rerun()
-                with delete:
+                with col2:
                     if st.form_submit_button("🗑️ Delete"):
                         delete_frame(table_name, fid)
                         st.session_state["success_message"] = f"Deleted: {name}"
