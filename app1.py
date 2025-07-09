@@ -13,9 +13,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# ✅ EARLY RETURN check (right after config)
-if st.session_state.get("rerun_needed", False):
-    st.session_state["rerun_needed"] = False
+# ✅ Handle rerun using query param
+if st.query_params.get("refresh") == ["1"]:
+    st.query_params.clear()
     st.experimental_rerun()
 
 # ---------- CSS ----------
@@ -106,18 +106,14 @@ def render_table_page(table_name, label):
                 if new_name.strip():
                     success, msg = add_frame(table_name, new_name.strip(), new_status)
                     if success:
-                        st.session_state["clear_input"] = True
+                        st.session_state[f"add_name_{table_name}"] = ""
                         st.session_state["success_message"] = msg
-                        st.session_state["rerun_needed"] = True
-                        return
+                        st.experimental_set_query_params(refresh=1)
+                        st.stop()
                     else:
                         st.warning(msg)
                 else:
                     st.warning("Frame name is required.")
-
-    if st.session_state.get("clear_input"):
-        st.session_state[f"add_name_{table_name}"] = ""
-        st.session_state["clear_input"] = False
 
     col1, col2 = st.columns(2)
     with col1:
@@ -140,14 +136,13 @@ def render_table_page(table_name, label):
     if f"page_{table_name}" not in st.session_state:
         st.session_state[f"page_{table_name}"] = 1
 
-    if total_items > 0:
-        current_page = st.number_input(
-            "Page", min_value=1, max_value=total_pages,
-            value=min(st.session_state[f"page_{table_name}"], total_pages),
-            step=1, key=f"page_{table_name}_input"
-        )
-    else:
-        current_page = 1
+    current_page = st.number_input(
+        "Page", min_value=1, max_value=total_pages,
+        value=st.session_state[f"page_{table_name}"],
+        step=1, key=f"page_{table_name}_input"
+    )
+
+    st.session_state[f"page_{table_name}"] = current_page
 
     start_idx = (current_page - 1) * items_per_page
     end_idx = start_idx + items_per_page
@@ -169,14 +164,14 @@ def render_table_page(table_name, label):
                     if st.form_submit_button("💾 Save"):
                         update_frame(table_name, fid, new_name, new_status)
                         st.session_state["success_message"] = "Updated successfully."
-                        st.session_state["rerun_needed"] = True
-                        return
+                        st.experimental_set_query_params(refresh=1)
+                        st.stop()
                 with delete:
                     if st.form_submit_button("🗑️ Delete"):
                         delete_frame(table_name, fid)
                         st.session_state["success_message"] = f"Deleted: {name}"
-                        st.session_state["rerun_needed"] = True
-                        return
+                        st.experimental_set_query_params(refresh=1)
+                        st.stop()
                 st.markdown("</td></tr>", unsafe_allow_html=True)
         st.markdown("</tbody></table></div>", unsafe_allow_html=True)
     else:
