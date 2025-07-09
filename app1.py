@@ -13,6 +13,12 @@ st.set_page_config(
     layout="wide"
 )
 
+# ✅ EARLY RETURN check (right after config)
+if st.session_state.get("rerun_needed", False):
+    st.session_state["rerun_needed"] = False
+    st.experimental_rerun()
+
+
 # ---------- CSS for Mobile Padding ----------
 st.markdown("""
     <style>
@@ -184,11 +190,4 @@ if page == "Design Frame Tracker":
 elif page == "BP Frame Tracker":
     render_table_page("bp_frames", "BP Frame Tracker")
 
-# Safe rerun trigger at the end
-def trigger_rerun():
-    if st.session_state.get("rerun_needed", False):
-        st.session_state["rerun_needed"] = False
-        st.experimental_rerun()
-
-trigger_rerun()
 
