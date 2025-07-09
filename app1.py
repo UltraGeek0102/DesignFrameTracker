@@ -111,7 +111,7 @@ def render_table_page(table_name, label):
                         st.session_state.pop(name_key, None)
                         st.session_state.pop(status_key, None)
                         st.session_state["success_message"] = msg
-                        st.experimental_set_query_params(refresh=1)
+                        st.query_params.update({"refresh": "1"})
                         st.stop()
                     else:
                         st.warning(msg)
@@ -167,13 +167,13 @@ def render_table_page(table_name, label):
                     if st.form_submit_button("💾 Save"):
                         update_frame(table_name, fid, new_name, new_status)
                         st.session_state["success_message"] = "Updated successfully."
-                        st.experimental_set_query_params(refresh=1)
+                        st.query_params.update({"refresh": "1"})
                         st.stop()
                 with delete:
                     if st.form_submit_button("🗑️ Delete"):
                         delete_frame(table_name, fid)
                         st.session_state["success_message"] = f"Deleted: {name}"
-                        st.experimental_set_query_params(refresh=1)
+                        st.query_params.update({"refresh": "1"})
                         st.stop()
                 st.markdown("</td></tr>", unsafe_allow_html=True)
         st.markdown("</tbody></table></div>", unsafe_allow_html=True)
