@@ -13,11 +13,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# ✅ Handle rerun using query param
-if st.query_params.get("refresh") == ["1"]:
-    st.query_params.clear()
-    st.experimental_rerun()
-
 # ---------- CSS ----------
 st.markdown("""
     <style>
@@ -108,8 +103,7 @@ def render_table_page(table_name, label):
                     if success:
                         st.session_state[f"add_name_{table_name}"] = ""
                         st.session_state["success_message"] = msg
-                        st.experimental_set_query_params(refresh=1)
-                        st.stop()
+                        st.rerun()
                     else:
                         st.warning(msg)
                 else:
@@ -164,14 +158,12 @@ def render_table_page(table_name, label):
                     if st.form_submit_button("💾 Save"):
                         update_frame(table_name, fid, new_name, new_status)
                         st.session_state["success_message"] = "Updated successfully."
-                        st.experimental_set_query_params(refresh=1)
-                        st.stop()
+                        st.rerun()
                 with delete:
                     if st.form_submit_button("🗑️ Delete"):
                         delete_frame(table_name, fid)
                         st.session_state["success_message"] = f"Deleted: {name}"
-                        st.experimental_set_query_params(refresh=1)
-                        st.stop()
+                        st.rerun()
                 st.markdown("</td></tr>", unsafe_allow_html=True)
         st.markdown("</tbody></table></div>", unsafe_allow_html=True)
     else:
