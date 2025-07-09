@@ -47,13 +47,7 @@ def render_table_page(table_name, label):
     with col3:
         st.title(f"🧵 {label}")
 
-    # Top toggle + title
-    col1, col2 = st.columns([1, 6])
-    with col1:
-        if st.button("☰"):
-            st.session_state.show_sidebar = not st.session_state.show_sidebar
-    with col2:
-        st.title(f"🧵 {label}")
+    
 
     # Add New Form in sidebar
     if st.session_state.show_sidebar:
