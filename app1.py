@@ -41,6 +41,11 @@ st.markdown("""
         .status-inrepair {
             background-color: orange;
         }
+        .action-button {
+            color: blue;
+            cursor: pointer;
+            text-decoration: underline;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -58,11 +63,12 @@ def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
 
-    # Display success message if available
+    if "edit_row" not in st.session_state:
+        st.session_state.edit_row = None
+
     if "success_message" in st.session_state:
         st.success(st.session_state.pop("success_message"))
 
-    # Top toggle + logo + title
     col1, col2, col3 = st.columns([1, 1.5, 6])
     with col1:
         if st.button("☰"):
@@ -72,7 +78,6 @@ def render_table_page(table_name, label):
     with col3:
         st.markdown(f"<h1 style='margin-top: 0.6rem;'>{label}</h1>", unsafe_allow_html=True)
 
-    # Add New Form in sidebar
     if st.session_state.show_sidebar:
         with st.sidebar:
             st.header(f"➕ Add New Frame ({label})")
@@ -90,7 +95,6 @@ def render_table_page(table_name, label):
                 else:
                     st.warning("Frame name is required.")
 
-    # Search, filter and display
     col1, col2 = st.columns(2)
     with col1:
         search_query = st.text_input("🔍 Search Frame Name", key=f"search_{table_name}")
@@ -99,58 +103,48 @@ def render_table_page(table_name, label):
 
     rows = get_frames(table_name)
 
-    # Apply fuzzy search filter
     if search_query:
         rows = [r for r in rows if fuzz.partial_ratio(search_query.lower(), r[1].lower()) > 70]
 
-    # Apply status filter
     if status_filter != "All":
         rows = [r for r in rows if r[2] == status_filter]
 
     st.write(f"### 📋 {label} Table View ({len(rows)} items)")
 
-    if rows:
-        data = []
-        for fid, name, status in rows:
-            data.append({
-                "Frame Name": name,
-                "Status": status_tag(status),
-                "Actions": f"Edit | Delete"
-            })
+    for fid, name, status in rows:
+        if st.session_state.edit_row == fid:
+            with st.form(f"edit_form_{table_name}_{fid}"):
+                new_name = st.text_input("Edit Frame Name", name, key=f"edit_name_{table_name}_{fid}")
+                new_status = st.selectbox("Edit Status", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), key=f"edit_status_{table_name}_{fid}")
+                col_edit, col_cancel = st.columns(2)
+                with col_edit:
+                    if st.form_submit_button("💾 Save"):
+                        update_frame(table_name, fid, new_name, new_status)
+                        st.session_state["success_message"] = "Updated successfully."
+                        st.session_state["rerun_needed"] = True
+                        st.stop()
+                with col_cancel:
+                    if st.form_submit_button("❌ Cancel"):
+                        st.session_state.edit_row = None
+                        st.experimental_rerun()
+        else:
+            col1, col2, col3 = st.columns([4, 2, 2])
+            col1.markdown(f"**{name}**")
+            col2.markdown(status_tag(status), unsafe_allow_html=True)
+            col3.markdown(f"<span class='action-button' onclick='window.location.reload();'>Edit</span> | <span class='action-button' onclick='window.location.reload();'>Delete</span>", unsafe_allow_html=True)
+            if col3.button("Edit", key=f"edit_btn_{fid}"):
+                st.session_state.edit_row = fid
+                st.experimental_rerun()
+            if col3.button("Delete", key=f"delete_btn_{fid}"):
+                delete_frame(table_name, fid)
+                st.session_state["success_message"] = f"Deleted: {name}"
+                st.session_state["rerun_needed"] = True
+                st.stop()
 
-        df = pd.DataFrame(data)
-        st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
-
-        # Inline Edit/Delete controls
-        for fid, name, status in rows:
-            with st.expander(f"✏️ Edit/Delete: {name}", expanded=False):
-                with st.form(f"edit_form_{table_name}_{fid}", clear_on_submit=False):
-                    new_name = st.text_input("Edit Frame Name", name, key=f"edit_name_{table_name}_{fid}")
-                    new_status = st.selectbox("Edit Status", ["InHouse", "OutHouse", "InRepair"],
-                                              index=["InHouse", "OutHouse", "InRepair"].index(status),
-                                              key=f"edit_status_{table_name}_{fid}")
-                    col_edit, col_delete = st.columns(2)
-                    with col_edit:
-                        if st.form_submit_button("💾 Save Changes"):
-                            update_frame(table_name, fid, new_name, new_status)
-                            st.session_state["success_message"] = "Updated successfully."
-                            st.session_state["rerun_needed"] = True
-                            st.stop()
-                    with col_delete:
-                        if st.form_submit_button("🗑️ Delete Frame"):
-                            delete_frame(table_name, fid)
-                            st.session_state["success_message"] = f"Deleted: {name}"
-                            st.session_state["rerun_needed"] = True
-                            st.stop()
-    else:
-        st.info("No data available.")
-
-    # Export to Excel
     if st.button("📤 Export to Excel", key=f"export_{table_name}"):
         path = export_to_excel(table_name, label)
         with open(path, "rb") as f:
-            st.download_button("Download Excel", data=f, file_name=os.path.basename(path),
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            st.download_button("Download Excel", data=f, file_name=os.path.basename(path), mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # ---------- DATABASE FUNCTIONS ----------
 
@@ -212,16 +206,13 @@ def export_to_excel(table_name, label):
 
 # ---------- MAIN ----------
 
-# Sidebar Navigation
 st.sidebar.image("logo.png", width=80)
 st.sidebar.title("Jubilee Inventory")
 page = st.sidebar.radio("Navigation", ["Design Frame Tracker", "BP Frame Tracker"])
 
-# Ensure tables exist
 init_table("design_frames")
 init_table("bp_frames")
 
-# Routing
 if page == "Design Frame Tracker":
     render_table_page("design_frames", "Design Frame Tracker")
 elif page == "BP Frame Tracker":
