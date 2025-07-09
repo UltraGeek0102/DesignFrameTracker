@@ -185,6 +185,10 @@ elif page == "BP Frame Tracker":
     render_table_page("bp_frames", "BP Frame Tracker")
 
 # Safe rerun trigger at the end
-if st.session_state.get("rerun_needed"):
-    st.session_state.rerun_needed = False
-    st.experimental_rerun()
+def trigger_rerun():
+    if st.session_state.get("rerun_needed", False):
+        st.session_state["rerun_needed"] = False
+        st.experimental_rerun()
+
+trigger_rerun()
+
