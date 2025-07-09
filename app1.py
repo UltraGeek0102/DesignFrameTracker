@@ -37,17 +37,15 @@ def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
 
-     # Top toggle + logo + title
     col1, col2, col3 = st.columns([1, 1.5, 6])
     with col1:
         if st.button("☰"):
             st.session_state.show_sidebar = not st.session_state.show_sidebar
     with col2:
-        st.image("logo.png", width=48)
+        st.image("logo.png", width=32)  # Smaller logo size for better alignment
     with col3:
-        st.title(f"🧵 {label}")
+        st.markdown(f"<h1 style='margin-top: 0.6rem;'>{label}</h1>", unsafe_allow_html=True)
 
-    
 
     # Add New Form in sidebar
     if st.session_state.show_sidebar:
