@@ -13,20 +13,14 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------- CSS ----------
+# ---------- CSS & Favicon Injection for Mobile ----------
 st.markdown("""
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <style>
         @media (max-width: 768px) {
             .block-container {
                 padding: 1rem !important;
-            }
-            .scroll-table {
-                max-height: 300px !important;
-                overflow-x: scroll;
-                overflow-y: scroll;
-            }
-            .custom-table td input, .custom-table td select {
-                width: 100% !important;
             }
         }
         .status-tag {
@@ -149,15 +143,18 @@ def render_table_page(table_name, label):
         for fid, name, status in paginated_rows:
             with st.form(f"action_form_{table_name}_{fid}"):
                 st.markdown(f"<tr><td>{name}</td><td>{status_tag(status)}</td><td>", unsafe_allow_html=True)
-                new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{fid}_{table_name}")
-                new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{fid}_{table_name}")
-                col1, col2 = st.columns([1, 1])
-                with col1:
+                edit_col, delete_col = st.columns([1, 1])
+                with edit_col:
+                    new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{fid}_{table_name}")
+                with delete_col:
+                    new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{fid}_{table_name}")
+                save, delete = st.columns([1, 1])
+                with save:
                     if st.form_submit_button("💾 Save"):
                         update_frame(table_name, fid, new_name, new_status)
                         st.session_state["success_message"] = "Updated successfully."
                         st.rerun()
-                with col2:
+                with delete:
                     if st.form_submit_button("🗑️ Delete"):
                         delete_frame(table_name, fid)
                         st.session_state["success_message"] = f"Deleted: {name}"
