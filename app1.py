@@ -58,7 +58,6 @@ st.markdown("""
         }
         table.custom-table th {
             background-color: #222;
-            cursor: pointer;
         }
         .action-button {
             background-color: #444;
@@ -85,6 +84,7 @@ def status_tag(status):
 def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
+
     if "success_message" in st.session_state:
         st.success(st.session_state.pop("success_message"))
 
@@ -131,27 +131,32 @@ def render_table_page(table_name, label):
     if status_filter != "All":
         rows = [r for r in rows if r[2] == status_filter]
 
-    # Pagination and sorting
-    sort_column = st.selectbox("Sort By", ["Frame Name", "Status"], key=f"sort_col_{table_name}")
-    sort_order = st.radio("Sort Order", ["Ascending", "Descending"], key=f"sort_order_{table_name}", horizontal=True)
+    st.write(f"### 📋 {label} Table View ({len(rows)} items)")
 
-    reverse = sort_order == "Descending"
-    if sort_column == "Frame Name":
-        rows.sort(key=lambda x: x[1].lower(), reverse=reverse)
+    items_per_page = 10
+    total_items = len(rows)
+    total_pages = max((total_items - 1) // items_per_page + 1, 1)
+
+    if f"page_{table_name}" not in st.session_state:
+        st.session_state[f"page_{table_name}"] = 1
+
+    if total_items > 0:
+        current_page = st.number_input(
+            "Page", min_value=1, max_value=total_pages,
+            value=min(st.session_state[f"page_{table_name}"], total_pages),
+            step=1, key=f"page_{table_name}_input"
+        )
     else:
-        rows.sort(key=lambda x: x[2], reverse=reverse)
+        current_page = 1
 
-    page_size = 10
-    total_pages = (len(rows) - 1) // page_size + 1
-    current_page = st.number_input("Page", min_value=1, max_value=total_pages, value=1, key=f"page_{table_name}")
-    page_rows = rows[(current_page - 1) * page_size: current_page * page_size]
+    start_idx = (current_page - 1) * items_per_page
+    end_idx = start_idx + items_per_page
+    paginated_rows = rows[start_idx:end_idx]
 
-    st.write(f"### 📋 {label} Table View ({len(rows)} items, Page {current_page}/{total_pages})")
-
-    if page_rows:
+    if paginated_rows:
         st.markdown("<div class='scroll-table'><table class='custom-table'>", unsafe_allow_html=True)
         st.markdown("<thead><tr><th>Frame Name</th><th>Status</th><th>Actions</th></tr></thead><tbody>", unsafe_allow_html=True)
-        for fid, name, status in page_rows:
+        for fid, name, status in paginated_rows:
             with st.form(f"action_form_{table_name}_{fid}"):
                 st.markdown(f"<tr><td>{name}</td><td>{status_tag(status)}</td><td>", unsafe_allow_html=True)
                 edit_col, delete_col = st.columns([1, 1])
