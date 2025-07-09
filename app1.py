@@ -3,15 +3,15 @@ import sqlite3
 import pandas as pd
 import os
 from datetime import datetime
+from rapidfuzz import fuzz
 
 DB_FILE = "saree.db"
 
 st.set_page_config(
     page_title="Jubilee Frame Tracker",
-    page_icon="favicon.ico",  # reference your .ico file
+    page_icon="favicon.ico",
     layout="wide"
 )
-
 
 # ---------- CSS for Mobile Padding ----------
 st.markdown("""
@@ -37,15 +37,15 @@ def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
 
+    # Top toggle + logo + title
     col1, col2, col3 = st.columns([1, 1.5, 6])
     with col1:
         if st.button("☰"):
             st.session_state.show_sidebar = not st.session_state.show_sidebar
     with col2:
-        st.image("logo.png", width=120)  # Smaller logo size for better alignment
+        st.image("logo.png", width=32)
     with col3:
         st.markdown(f"<h1 style='margin-top: 0.6rem;'>{label}</h1>", unsafe_allow_html=True)
-
 
     # Add New Form in sidebar
     if st.session_state.show_sidebar:
@@ -61,9 +61,22 @@ def render_table_page(table_name, label):
                 else:
                     st.warning("Frame name is required.")
 
-    # Search and display
-    search_query = st.text_input("🔍 Search Frame Name", key=f"search_{table_name}")
-    rows = get_frames(table_name, search_query)
+    # Search, filter and display
+    col1, col2 = st.columns(2)
+    with col1:
+        search_query = st.text_input("🔍 Search Frame Name", key=f"search_{table_name}")
+    with col2:
+        status_filter = st.selectbox("Filter by Status", ["All", "InHouse", "OutHouse", "InRepair"], key=f"filter_{table_name}")
+
+    rows = get_frames(table_name)
+
+    # Apply fuzzy search filter
+    if search_query:
+        rows = [r for r in rows if fuzz.partial_ratio(search_query.lower(), r[1].lower()) > 70]
+
+    # Apply status filter
+    if status_filter != "All":
+        rows = [r for r in rows if r[2] == status_filter]
 
     st.write(f"### 📋 {label} List ({len(rows)} items)")
 
@@ -111,13 +124,10 @@ def init_table(table_name):
     conn.commit()
     conn.close()
 
-def get_frames(table_name, search_query=""):
+def get_frames(table_name):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    if search_query:
-        cursor.execute(f"SELECT id, frame_name, status FROM {table_name} WHERE LOWER(frame_name) LIKE ?", ('%' + search_query.lower() + '%',))
-    else:
-        cursor.execute(f"SELECT id, frame_name, status FROM {table_name}")
+    cursor.execute(f"SELECT id, frame_name, status FROM {table_name}")
     rows = cursor.fetchall()
     conn.close()
     return rows
@@ -158,8 +168,6 @@ def export_to_excel(table_name, label):
     return path
 
 # ---------- MAIN ----------
-
-st.set_page_config(page_title="Jubilee Frame Tracker", layout="wide")
 
 # Sidebar Navigation
 st.sidebar.image("logo.png", width=80)
