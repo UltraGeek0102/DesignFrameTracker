@@ -58,12 +58,16 @@ st.markdown("""
         }
         table.custom-table th {
             background-color: #222;
+            cursor: pointer;
         }
-        .pagination {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin: 1rem 0;
+        .action-button {
+            background-color: #444;
+            color: white;
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            margin: 0 4px;
+            cursor: pointer;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -81,7 +85,6 @@ def status_tag(status):
 def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
-
     if "success_message" in st.session_state:
         st.success(st.session_state.pop("success_message"))
 
@@ -103,7 +106,7 @@ def render_table_page(table_name, label):
                 if new_name.strip():
                     success, msg = add_frame(table_name, new_name.strip(), new_status)
                     if success:
-                        st.session_state[f"add_name_{table_name}"] = ""
+                        st.session_state["clear_input"] = True
                         st.session_state["success_message"] = msg
                         st.session_state["rerun_needed"] = True
                         return
@@ -111,6 +114,10 @@ def render_table_page(table_name, label):
                         st.warning(msg)
                 else:
                     st.warning("Frame name is required.")
+
+    if st.session_state.get("clear_input"):
+        st.session_state[f"add_name_{table_name}"] = ""
+        st.session_state["clear_input"] = False
 
     col1, col2 = st.columns(2)
     with col1:
@@ -124,17 +131,22 @@ def render_table_page(table_name, label):
     if status_filter != "All":
         rows = [r for r in rows if r[2] == status_filter]
 
-    # Pagination
-    per_page = 10
-    total_pages = (len(rows) - 1) // per_page + 1
-    current_page = st.session_state.get(f"page_{table_name}", 1)
-    current_page = st.number_input("Page", 1, max(1, total_pages), current_page, key=f"page_{table_name}_input")
-    st.session_state[f"page_{table_name}"] = current_page
-    start = (current_page - 1) * per_page
-    end = start + per_page
-    page_rows = rows[start:end]
+    # Pagination and sorting
+    sort_column = st.selectbox("Sort By", ["Frame Name", "Status"], key=f"sort_col_{table_name}")
+    sort_order = st.radio("Sort Order", ["Ascending", "Descending"], key=f"sort_order_{table_name}", horizontal=True)
 
-    st.write(f"### 📋 {label} Table View ({len(rows)} items)")
+    reverse = sort_order == "Descending"
+    if sort_column == "Frame Name":
+        rows.sort(key=lambda x: x[1].lower(), reverse=reverse)
+    else:
+        rows.sort(key=lambda x: x[2], reverse=reverse)
+
+    page_size = 10
+    total_pages = (len(rows) - 1) // page_size + 1
+    current_page = st.number_input("Page", min_value=1, max_value=total_pages, value=1, key=f"page_{table_name}")
+    page_rows = rows[(current_page - 1) * page_size: current_page * page_size]
+
+    st.write(f"### 📋 {label} Table View ({len(rows)} items, Page {current_page}/{total_pages})")
 
     if page_rows:
         st.markdown("<div class='scroll-table'><table class='custom-table'>", unsafe_allow_html=True)
@@ -142,19 +154,19 @@ def render_table_page(table_name, label):
         for fid, name, status in page_rows:
             with st.form(f"action_form_{table_name}_{fid}"):
                 st.markdown(f"<tr><td>{name}</td><td>{status_tag(status)}</td><td>", unsafe_allow_html=True)
-                col1, col2 = st.columns([1, 1])
-                with col1:
+                edit_col, delete_col = st.columns([1, 1])
+                with edit_col:
                     new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{fid}_{table_name}")
-                with col2:
+                with delete_col:
                     new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{fid}_{table_name}")
-                c1, c2 = st.columns([1, 1])
-                with c1:
+                save, delete = st.columns([1, 1])
+                with save:
                     if st.form_submit_button("💾 Save"):
                         update_frame(table_name, fid, new_name, new_status)
                         st.session_state["success_message"] = "Updated successfully."
                         st.session_state["rerun_needed"] = True
                         return
-                with c2:
+                with delete:
                     if st.form_submit_button("🗑️ Delete"):
                         delete_frame(table_name, fid)
                         st.session_state["success_message"] = f"Deleted: {name}"
