@@ -58,6 +58,10 @@ def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
 
+    # Display success message if available
+    if "success_message" in st.session_state:
+        st.success(st.session_state.pop("success_message"))
+
     # Top toggle + logo + title
     col1, col2, col3 = st.columns([1, 1.5, 6])
     with col1:
@@ -77,9 +81,12 @@ def render_table_page(table_name, label):
             if st.button("Add Frame", key=f"add_btn_{table_name}"):
                 if new_name.strip():
                     success, msg = add_frame(table_name, new_name.strip(), new_status)
-                    st.success(msg) if success else st.warning(msg)
-                    st.session_state["rerun_needed"] = True
-                    st.stop()
+                    if success:
+                        st.session_state["success_message"] = msg
+                        st.session_state["rerun_needed"] = True
+                        st.stop()
+                    else:
+                        st.warning(msg)
                 else:
                     st.warning("Frame name is required.")
 
@@ -126,13 +133,13 @@ def render_table_page(table_name, label):
                     with col_edit:
                         if st.form_submit_button("💾 Save Changes"):
                             update_frame(table_name, fid, new_name, new_status)
-                            st.success("Updated successfully.")
+                            st.session_state["success_message"] = "Updated successfully."
                             st.session_state["rerun_needed"] = True
                             st.stop()
                     with col_delete:
                         if st.form_submit_button("🗑️ Delete Frame"):
                             delete_frame(table_name, fid)
-                            st.warning(f"Deleted: {name}")
+                            st.session_state["success_message"] = f"Deleted: {name}"
                             st.session_state["rerun_needed"] = True
                             st.stop()
     else:
