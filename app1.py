@@ -13,11 +13,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# ✅ Handle rerun using query param
-if st.query_params.get("refresh") == ["1"]:
-    st.query_params.clear()
-    st.experimental_rerun()
-
 # ---------- CSS ----------
 st.markdown("""
     <style>
@@ -59,15 +54,6 @@ st.markdown("""
         table.custom-table th {
             background-color: #222;
         }
-        .action-button {
-            background-color: #444;
-            color: white;
-            padding: 4px 8px;
-            border: none;
-            border-radius: 4px;
-            margin: 0 4px;
-            cursor: pointer;
-        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -84,6 +70,10 @@ def status_tag(status):
 def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
+
+    if st.session_state.get("trigger_rerun"):
+        st.session_state["trigger_rerun"] = False
+        st.experimental_rerun()
 
     if "success_message" in st.session_state:
         st.success(st.session_state.pop("success_message"))
@@ -111,7 +101,7 @@ def render_table_page(table_name, label):
                         st.session_state.pop(name_key, None)
                         st.session_state.pop(status_key, None)
                         st.session_state["success_message"] = msg
-                        st.query_params.update({"refresh": "1"})
+                        st.session_state["trigger_rerun"] = True
                         st.stop()
                     else:
                         st.warning(msg)
@@ -167,13 +157,13 @@ def render_table_page(table_name, label):
                     if st.form_submit_button("💾 Save"):
                         update_frame(table_name, fid, new_name, new_status)
                         st.session_state["success_message"] = "Updated successfully."
-                        st.query_params.update({"refresh": "1"})
+                        st.session_state["trigger_rerun"] = True
                         st.stop()
                 with delete:
                     if st.form_submit_button("🗑️ Delete"):
                         delete_frame(table_name, fid)
                         st.session_state["success_message"] = f"Deleted: {name}"
-                        st.query_params.update({"refresh": "1"})
+                        st.session_state["trigger_rerun"] = True
                         st.stop()
                 st.markdown("</td></tr>", unsafe_allow_html=True)
         st.markdown("</tbody></table></div>", unsafe_allow_html=True)
