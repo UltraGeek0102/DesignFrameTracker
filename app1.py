@@ -57,7 +57,7 @@ def render_table_page(table_name, label):
                 if new_name.strip():
                     success, msg = add_frame(table_name, new_name.strip(), new_status)
                     st.success(msg) if success else st.warning(msg)
-                    st.experimental_rerun()
+                    st.session_state.rerun_needed = True
                 else:
                     st.warning("Frame name is required.")
 
@@ -95,12 +95,12 @@ def render_table_page(table_name, label):
                     if st.form_submit_button("💾 Save Changes"):
                         update_frame(table_name, fid, new_name, new_status)
                         st.success("Updated successfully.")
-                        st.experimental_rerun()
+                        st.session_state.rerun_needed = True
                 with col_delete:
                     if st.form_submit_button("🗑️ Delete Frame"):
                         delete_frame(table_name, fid)
                         st.warning(f"Deleted: {name}")
-                        st.experimental_rerun()
+                        st.session_state.rerun_needed = True
 
     # Export to Excel
     if st.button("📤 Export to Excel", key=f"export_{table_name}"):
@@ -183,3 +183,8 @@ if page == "Design Frame Tracker":
     render_table_page("design_frames", "Design Frame Tracker")
 elif page == "BP Frame Tracker":
     render_table_page("bp_frames", "BP Frame Tracker")
+
+# Safe rerun trigger at the end
+if st.session_state.get("rerun_needed"):
+    st.session_state.rerun_needed = False
+    st.experimental_rerun()
