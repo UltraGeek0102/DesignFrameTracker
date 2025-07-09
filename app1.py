@@ -18,7 +18,7 @@ if st.session_state.get("rerun_needed", False):
     st.session_state["rerun_needed"] = False
     st.experimental_rerun()
 
-# ---------- CSS for Mobile Padding ----------
+# ---------- CSS ----------
 st.markdown("""
     <style>
         @media (max-width: 768px) {
@@ -26,17 +26,33 @@ st.markdown("""
                 padding: 1rem !important;
             }
         }
+        .status-tag {
+            color: white;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .status-inhouse {
+            background-color: green;
+        }
+        .status-outhouse {
+            background-color: red;
+        }
+        .status-inrepair {
+            background-color: orange;
+        }
     </style>
 """, unsafe_allow_html=True)
 
 # ---------- COMMON UTILITIES ----------
 
-def status_color(status):
-    return {
-        "InHouse": "green",
-        "OutHouse": "red",
-        "InRepair": "orange"
-    }.get(status, "gray")
+def status_tag(status):
+    css_class = {
+        "InHouse": "status-inhouse",
+        "OutHouse": "status-outhouse",
+        "InRepair": "status-inrepair"
+    }.get(status, "")
+    return f"<span class='status-tag {css_class}'>{status}</span>"
 
 def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
@@ -84,31 +100,43 @@ def render_table_page(table_name, label):
     if status_filter != "All":
         rows = [r for r in rows if r[2] == status_filter]
 
-    st.write(f"### 📋 {label} List ({len(rows)} items)")
+    st.write(f"### 📋 {label} Table View ({len(rows)} items)")
 
-    for row in rows:
-        fid, name, status = row
-        with st.expander(f"📌 {name}"):
-            st.markdown(f"<span style='color: white; background-color: {status_color(status)}; padding: 4px 8px; border-radius: 4px;'>{status}</span>", unsafe_allow_html=True)
+    if rows:
+        data = []
+        for fid, name, status in rows:
+            data.append({
+                "Frame Name": name,
+                "Status": status_tag(status),
+                "Actions": f"Edit | Delete"
+            })
 
-            with st.form(f"edit_form_{table_name}_{fid}", clear_on_submit=False):
-                new_name = st.text_input("Edit Frame Name", name, key=f"edit_name_{table_name}_{fid}")
-                new_status = st.selectbox("Edit Status", ["InHouse", "OutHouse", "InRepair"],
-                                          index=["InHouse", "OutHouse", "InRepair"].index(status),
-                                          key=f"edit_status_{table_name}_{fid}")
-                col_edit, col_delete = st.columns(2)
-                with col_edit:
-                    if st.form_submit_button("💾 Save Changes"):
-                        update_frame(table_name, fid, new_name, new_status)
-                        st.success("Updated successfully.")
-                        st.session_state["rerun_needed"] = True
-                        st.stop()
-                with col_delete:
-                    if st.form_submit_button("🗑️ Delete Frame"):
-                        delete_frame(table_name, fid)
-                        st.warning(f"Deleted: {name}")
-                        st.session_state["rerun_needed"] = True
-                        st.stop()
+        df = pd.DataFrame(data)
+        st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
+
+        # Inline Edit/Delete controls
+        for fid, name, status in rows:
+            with st.expander(f"✏️ Edit/Delete: {name}", expanded=False):
+                with st.form(f"edit_form_{table_name}_{fid}", clear_on_submit=False):
+                    new_name = st.text_input("Edit Frame Name", name, key=f"edit_name_{table_name}_{fid}")
+                    new_status = st.selectbox("Edit Status", ["InHouse", "OutHouse", "InRepair"],
+                                              index=["InHouse", "OutHouse", "InRepair"].index(status),
+                                              key=f"edit_status_{table_name}_{fid}")
+                    col_edit, col_delete = st.columns(2)
+                    with col_edit:
+                        if st.form_submit_button("💾 Save Changes"):
+                            update_frame(table_name, fid, new_name, new_status)
+                            st.success("Updated successfully.")
+                            st.session_state["rerun_needed"] = True
+                            st.stop()
+                    with col_delete:
+                        if st.form_submit_button("🗑️ Delete Frame"):
+                            delete_frame(table_name, fid)
+                            st.warning(f"Deleted: {name}")
+                            st.session_state["rerun_needed"] = True
+                            st.stop()
+    else:
+        st.info("No data available.")
 
     # Export to Excel
     if st.button("📤 Export to Excel", key=f"export_{table_name}"):
