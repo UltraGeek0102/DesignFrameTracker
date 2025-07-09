@@ -27,11 +27,10 @@ def status_color(status):
     }.get(status, "gray")
 
 def render_table_page(table_name, label):
-    # Sidebar toggle state
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
 
-    # Toggle Button
+    # Top toggle + title
     col1, col2 = st.columns([1, 6])
     with col1:
         if st.button("☰"):
@@ -39,7 +38,7 @@ def render_table_page(table_name, label):
     with col2:
         st.title(f"🧵 {label}")
 
-    # Sidebar Inputs
+    # Add New Form in sidebar
     if st.session_state.show_sidebar:
         with st.sidebar:
             st.header(f"➕ Add New Frame ({label})")
@@ -53,7 +52,7 @@ def render_table_page(table_name, label):
                 else:
                     st.warning("Frame name is required.")
 
-    # Search + Display Frames
+    # Search and display
     search_query = st.text_input("🔍 Search Frame Name", key=f"search_{table_name}")
     rows = get_frames(table_name, search_query)
 
@@ -155,17 +154,14 @@ st.set_page_config(page_title="Jubilee Frame Tracker", layout="wide")
 
 # Sidebar Navigation
 st.sidebar.title("Jubilee Inventory")
-page = st.sidebar.radio("Navigation", ["Inventory", "Design Frame Tracker", "BP Frame Tracker"])
+page = st.sidebar.radio("Navigation", ["Design Frame Tracker", "BP Frame Tracker"])
 
-# Ensure both tables exist
+# Ensure tables exist
 init_table("design_frames")
 init_table("bp_frames")
 
 # Routing
-if page == "Inventory":
-    st.title("📦 Inventory Page")
-    st.info("You can integrate your main inventory page here.")
-elif page == "Design Frame Tracker":
+if page == "Design Frame Tracker":
     render_table_page("design_frames", "Design Frame Tracker")
 elif page == "BP Frame Tracker":
     render_table_page("bp_frames", "BP Frame Tracker")
