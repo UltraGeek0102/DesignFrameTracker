@@ -59,8 +59,11 @@ st.markdown("""
         table.custom-table th {
             background-color: #222;
         }
-        table.custom-table td button {
-            margin: 0 2px;
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 1rem 0;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -100,9 +103,10 @@ def render_table_page(table_name, label):
                 if new_name.strip():
                     success, msg = add_frame(table_name, new_name.strip(), new_status)
                     if success:
+                        st.session_state[f"add_name_{table_name}"] = ""
                         st.session_state["success_message"] = msg
                         st.session_state["rerun_needed"] = True
-                        st.stop()
+                        return
                     else:
                         st.warning(msg)
                 else:
@@ -120,43 +124,42 @@ def render_table_page(table_name, label):
     if status_filter != "All":
         rows = [r for r in rows if r[2] == status_filter]
 
+    # Pagination
+    per_page = 10
+    total_pages = (len(rows) - 1) // per_page + 1
+    current_page = st.session_state.get(f"page_{table_name}", 1)
+    current_page = st.number_input("Page", 1, max(1, total_pages), current_page, key=f"page_{table_name}_input")
+    st.session_state[f"page_{table_name}"] = current_page
+    start = (current_page - 1) * per_page
+    end = start + per_page
+    page_rows = rows[start:end]
+
     st.write(f"### 📋 {label} Table View ({len(rows)} items)")
 
-    if rows:
+    if page_rows:
         st.markdown("<div class='scroll-table'><table class='custom-table'>", unsafe_allow_html=True)
         st.markdown("<thead><tr><th>Frame Name</th><th>Status</th><th>Actions</th></tr></thead><tbody>", unsafe_allow_html=True)
-        for fid, name, status in rows:
-            with st.container():
-                col1, col2 = st.columns([1, 1])
-                edit_key = f"edit_{fid}_{table_name}"
-                delete_key = f"delete_{fid}_{table_name}"
-
-                edit_form = f"""
-                <form action="#" method="post">
-                    <input type="submit" name="{edit_key}" value="Edit">
-                    <input type="submit" name="{delete_key}" value="Delete">
-                </form>
-                """
+        for fid, name, status in page_rows:
+            with st.form(f"action_form_{table_name}_{fid}"):
                 st.markdown(f"<tr><td>{name}</td><td>{status_tag(status)}</td><td>", unsafe_allow_html=True)
-                with st.expander("Edit/Delete", expanded=False):
-                    with st.form(f"edit_form_{table_name}_{fid}", clear_on_submit=False):
-                        new_name = st.text_input("Edit Frame Name", name, key=f"edit_name_{table_name}_{fid}")
-                        new_status = st.selectbox("Edit Status", ["InHouse", "OutHouse", "InRepair"],
-                                                  index=["InHouse", "OutHouse", "InRepair"].index(status),
-                                                  key=f"edit_status_{table_name}_{fid}")
-                        col_edit, col_delete = st.columns(2)
-                        with col_edit:
-                            if st.form_submit_button("💾 Save Changes"):
-                                update_frame(table_name, fid, new_name, new_status)
-                                st.session_state["success_message"] = "Updated successfully."
-                                st.session_state["rerun_needed"] = True
-                                st.stop()
-                        with col_delete:
-                            if st.form_submit_button("🗑️ Delete Frame"):
-                                delete_frame(table_name, fid)
-                                st.session_state["success_message"] = f"Deleted: {name}"
-                                st.session_state["rerun_needed"] = True
-                                st.stop()
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{fid}_{table_name}")
+                with col2:
+                    new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{fid}_{table_name}")
+                c1, c2 = st.columns([1, 1])
+                with c1:
+                    if st.form_submit_button("💾 Save"):
+                        update_frame(table_name, fid, new_name, new_status)
+                        st.session_state["success_message"] = "Updated successfully."
+                        st.session_state["rerun_needed"] = True
+                        return
+                with c2:
+                    if st.form_submit_button("🗑️ Delete"):
+                        delete_frame(table_name, fid)
+                        st.session_state["success_message"] = f"Deleted: {name}"
+                        st.session_state["rerun_needed"] = True
+                        return
                 st.markdown("</td></tr>", unsafe_allow_html=True)
         st.markdown("</tbody></table></div>", unsafe_allow_html=True)
     else:
