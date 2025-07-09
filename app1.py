@@ -42,7 +42,7 @@ def render_table_page(table_name, label):
         if st.button("☰"):
             st.session_state.show_sidebar = not st.session_state.show_sidebar
     with col2:
-        st.image("logo.png", width=80)  # Smaller logo size for better alignment
+        st.image("logo.png", width=180)  # Smaller logo size for better alignment
     with col3:
         st.markdown(f"<h1 style='margin-top: 0.6rem;'>{label}</h1>", unsafe_allow_html=True)
 
