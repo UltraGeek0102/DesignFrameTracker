@@ -88,7 +88,14 @@ def add_frame(table_name, frame_name, status):
     existing_names = [row["Frame Name"] for row in ws.get_all_records()]
     if frame_name in existing_names:
         return False, f"Frame '{frame_name}' already exists."
+
     ws.append_row([frame_name, status], value_input_option="USER_ENTERED")
+
+    # Update hash to force rerender
+    records = ws.get_all_records()
+    new_hash = hashlib.md5(json.dumps(records, sort_keys=True).encode()).hexdigest()
+    st.session_state[f"last_hash_{table_name}"] = new_hash
+
     return True, f"Frame '{frame_name}' added."
 
 def update_frame(table_name, row_index, new_name, new_status):
@@ -153,6 +160,8 @@ def render_table_page(table_name, label):
                     if success:
                         st.session_state.pop(name_key, None)
                         st.session_state.pop(status_key, None)
+                        st.session_state.pop(f"search_{table_name}", None)
+                        st.session_state.pop(f"filter_{table_name}", None)
                         st.rerun()
                     else:
                         st.warning(msg)
