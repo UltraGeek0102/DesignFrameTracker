@@ -86,11 +86,10 @@ def get_sheet_data_and_hash(table_name):
     headers_raw = values[0]
     data_rows = values[1:]
 
-    # Normalize column headers and create header map
-    headers = [h.strip().lower() for h in headers_raw]
-    header_map = {h: i for i, h in enumerate(headers)}
+    headers_lower = [h.strip().lower() for h in headers_raw]
+    header_map = {h.lower(): h for h in headers_raw}
 
-    df = pd.DataFrame(data_rows, columns=headers)
+    df = pd.DataFrame(data_rows, columns=headers_lower)
     records = df.to_dict(orient="records")
 
     data_hash = hashlib.md5(str(time.time()).encode()).hexdigest()
@@ -98,14 +97,11 @@ def get_sheet_data_and_hash(table_name):
     processed_rows = []
     skipped = 0
     for i, row in enumerate(records):
-        try:
-            frame_name = row.get("frame name")
-            status = row.get("status")
-            if frame_name and status:
-                processed_rows.append((i + 2, frame_name, status))
-            else:
-                skipped += 1
-        except Exception:
+        frame_name = row.get("frame name")
+        status = row.get("status")
+        if frame_name and status:
+            processed_rows.append((i + 2, frame_name, status))
+        else:
             skipped += 1
 
     if skipped > 0:
