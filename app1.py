@@ -19,7 +19,7 @@ credentials = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes
 client = gspread.authorize(credentials)
 
 # Sheet setup
-SHEET_NAME = "design frame tracker"
+SHEET_NAME = st.text_input("Enter Sheet Name", value="design frame tracker")
 WORKSHEET_MAP = {
     "design_frames": "Sheet1",
     "bp_frames": "Sheet2"
