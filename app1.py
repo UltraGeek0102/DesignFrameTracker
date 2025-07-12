@@ -84,12 +84,10 @@ def get_sheet_data_and_hash(table_name):
         return [], ""
 
     headers_raw = values[0]
-    headers = [h.strip().lower() for h in headers_raw]
     data_rows = values[1:]
 
-    header_map = {h.lower(): h for h in headers_raw}
-
-    df = pd.DataFrame(data_rows, columns=headers)
+    df = pd.DataFrame(data_rows, columns=headers_raw)
+    df.columns = [c.strip().lower() for c in df.columns]  # Normalize headers to lowercase
     records = df.to_dict(orient="records")
 
     data_hash = hashlib.md5(str(time.time()).encode()).hexdigest()
@@ -97,8 +95,8 @@ def get_sheet_data_and_hash(table_name):
     processed_rows = []
     skipped = 0
     for i, row in enumerate(records):
-        frame_name = row.get("frame name") or row.get(header_map.get("frame name"))
-        status = row.get("status") or row.get(header_map.get("status"))
+        frame_name = row.get("frame name")
+        status = row.get("status")
         if frame_name and status:
             processed_rows.append((i + 2, frame_name, status))
         else:
