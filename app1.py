@@ -76,15 +76,35 @@ def status_tag(status):
 def get_worksheet(table_name):
     return client.open(SHEET_NAME).worksheet(WORKSHEET_MAP[table_name])
 
-def get_sheet_data_and_hash(table_name):
+@st.cache_data(show_spinner=False)
+def read_frames(table_name):
     ws = get_worksheet(table_name)
     values = ws.get_all_values()
 
     if not values or len(values) < 2:
-        return [], ""
+        return []
 
     headers_raw = values[0]
     data_rows = values[1:]
+    headers = [h.strip().lower() for h in headers_raw]
+    header_map = {h: i for i, h in enumerate(headers)}
+
+    processed_rows = []
+    for i, row in enumerate(data_rows):
+        frame_index = header_map.get("frame name")
+        status_index = header_map.get("status")
+        frame_name = row[frame_index].strip() if frame_index is not None and frame_index < len(row) else None
+        status = row[status_index].strip() if status_index is not None and status_index < len(row) else None
+        if frame_name and status:
+            processed_rows.append((i + 2, frame_name, status))
+
+    return processed_rows
+
+def get_sheet_data_and_hash(table_name):
+    rows = read_frames(table_name)
+    data_hash = hashlib.md5(str(time.time()).encode()).hexdigest()
+    return rows, data_hash
+
 
     # Normalize column headers and create header map
     headers = [h.strip().lower() for h in headers_raw]
