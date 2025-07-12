@@ -1,3 +1,4 @@
+
 import streamlit as st
 import gspread
 import pandas as pd
@@ -89,23 +90,19 @@ def read_frames(table_name):
     headers = [h.strip().lower() for h in headers_raw]
     header_map = {h: i for i, h in enumerate(headers)}
 
-    if "frame name" not in header_map or "status" not in header_map:
+    frame_index = header_map.get("frame name")
+    status_index = header_map.get("status")
+
+    if frame_index is None or status_index is None:
         st.error("❌ Required columns 'Frame Name' or 'Status' not found in the sheet.")
         return []
 
-    frame_index = header_map["frame name"]
-    status_index = header_map["status"]
-
     processed_rows = []
     for i, row in enumerate(data_rows):
-        try:
-            frame_name = row[frame_index].strip() if frame_index < len(row) else ""
-            status = row[status_index].strip() if status_index < len(row) else ""
-            if frame_name and status:
-                processed_rows.append((i + 2, frame_name, status))
-        except Exception as e:
-            st.warning(f"⚠️ Row {i+2} skipped due to error: {e}")
-            continue
+        frame_name = row[frame_index].strip() if frame_index < len(row) else None
+        status = row[status_index].strip() if status_index < len(row) else None
+        if frame_name and status:
+            processed_rows.append((i + 2, frame_name, status))
 
     return processed_rows
 
@@ -113,34 +110,6 @@ def get_sheet_data_and_hash(table_name):
     rows = read_frames(table_name)
     data_hash = hashlib.md5(str(time.time()).encode()).hexdigest()
     return rows, data_hash
-
-
-
-    # Normalize column headers and create header map
-    headers = [h.strip().lower() for h in headers_raw]
-    header_map = {h: i for i, h in enumerate(headers)}
-
-    data_hash = hashlib.md5(str(time.time()).encode()).hexdigest()
-
-    processed_rows = []
-    skipped = 0
-    for i, row in enumerate(data_rows):
-        try:
-            frame_index = header_map.get("frame name")
-            status_index = header_map.get("status")
-            frame_name = row[frame_index].strip() if frame_index is not None and frame_index < len(row) else None
-            status = row[status_index].strip() if status_index is not None and status_index < len(row) else None
-            if frame_name and status:
-                processed_rows.append((i + 2, frame_name, status))
-            else:
-                skipped += 1
-        except Exception:
-            skipped += 1
-
-    if skipped > 0:
-        st.warning(f"⚠️ Skipped {skipped} row(s) with missing 'Frame Name' or 'Status'.")
-
-    return processed_rows, data_hash
 
 def add_frame(table_name, frame_name, status):
     ws = get_worksheet(table_name)
