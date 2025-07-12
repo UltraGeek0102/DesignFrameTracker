@@ -142,6 +142,7 @@ def export_to_excel(table_name):
     df.to_excel(path, index=False)
     return path
 
+
 # ---------- Main Renderer ----------
 def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
@@ -258,6 +259,9 @@ st.sidebar.title("Jubilee Inventory")
 page = st.sidebar.radio("Navigation", ["Design Frame Tracker", "BP Frame Tracker"])
 
 if page == "Design Frame Tracker":
+    rows, _ = get_sheet_data_and_hash("design_frames")
     render_table_page("design_frames", "Design Frame Tracker")
 elif page == "BP Frame Tracker":
+    rows, _ = get_sheet_data_and_hash("bp_frames")
     render_table_page("bp_frames", "BP Frame Tracker")
+
