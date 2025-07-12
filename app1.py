@@ -4,11 +4,21 @@ import os
 from datetime import datetime
 from rapidfuzz import fuzz
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 
-# ---------- CONFIG ----------
-SERVICE_ACCOUNT_JSON = "service_account.json"
-SPREADSHEET_NAME = "Jubilee Frames"
+# Define the scope
+scope = ["https://www.googleapis.com/auth/spreadsheets", 
+         "https://www.googleapis.com/auth/drive"]
+
+# Load credentials from JSON file
+creds = Credentials.from_service_account_file("service_account.json", scopes=scope)
+
+# Authorize gspread with the credentials
+client = gspread.authorize(creds)
+
+# Open the sheet
+sheet = client.open("design frame tracker").worksheet("Sheet1")
+
 
 st.set_page_config(
     page_title="Jubilee Frame Tracker",
