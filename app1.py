@@ -1,11 +1,14 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 import os
 from datetime import datetime
 from rapidfuzz import fuzz
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
-DB_FILE = "saree.db"
+# ---------- CONFIG ----------
+SERVICE_ACCOUNT_JSON = "service_account.json"
+SPREADSHEET_NAME = "Jubilee Frames"
 
 st.set_page_config(
     page_title="Jubilee Frame Tracker",
@@ -13,10 +16,8 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------- CSS & Favicon Injection for Mobile ----------
+# ---------- CSS ----------
 st.markdown("""
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon.ico">
-    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <style>
         @media (max-width: 768px) {
             .block-container {
@@ -59,8 +60,45 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ---------- COMMON UTILITIES ----------
+# ---------- GOOGLE SHEETS ----------
+class GoogleSheetDB:
+    def __init__(self, json_key_path, spreadsheet_name):
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        creds = ServiceAccountCredentials.from_json_keyfile_name(json_key_path, scope)
+        self.client = gspread.authorize(creds)
+        self.sheet = self.client.open(spreadsheet_name)
 
+    def get_sheet(self, sheet_name):
+        return self.sheet.worksheet(sheet_name)
+
+    def get_frames(self, sheet_name):
+        df = pd.DataFrame(self.get_sheet(sheet_name).get_all_records())
+        return df.reset_index().rename(columns={"index": "id"}).to_records(index=False)
+
+    def add_frame(self, sheet_name, frame_name, status):
+        ws = self.get_sheet(sheet_name)
+        records = ws.get_all_records()
+        if any(row["frame_name"] == frame_name for row in records):
+            return False, f"Frame '{frame_name}' already exists."
+        ws.append_row([frame_name, status])
+        return True, f"Frame '{frame_name}' added."
+
+    def update_frame(self, sheet_name, row_index, frame_name, status):
+        ws = self.get_sheet(sheet_name)
+        ws.update(f"A{row_index+2}", [[frame_name, status]])
+
+    def delete_frame(self, sheet_name, row_index):
+        ws = self.get_sheet(sheet_name)
+        ws.delete_rows(row_index + 2)
+
+    def export_to_excel(self, sheet_name):
+        df = pd.DataFrame(self.get_sheet(sheet_name).get_all_records())
+        os.makedirs("exports", exist_ok=True)
+        path = f"exports/{sheet_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        df.to_excel(path, index=False)
+        return path
+
+# ---------- UTILITIES ----------
 def status_tag(status):
     css_class = {
         "InHouse": "status-inhouse",
@@ -69,7 +107,9 @@ def status_tag(status):
     }.get(status, "")
     return f"<span class='status-tag {css_class}'>{status}</span>"
 
-def render_table_page(table_name, label):
+gs_db = GoogleSheetDB(SERVICE_ACCOUNT_JSON, SPREADSHEET_NAME)
+
+def render_table_page(sheet_name, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
 
@@ -88,13 +128,13 @@ def render_table_page(table_name, label):
     if st.session_state.show_sidebar:
         with st.sidebar:
             st.header(f"➕ Add New Frame ({label})")
-            name_key = f"add_name_{table_name}"
-            status_key = f"add_status_{table_name}"
+            name_key = f"add_name_{sheet_name}"
+            status_key = f"add_status_{sheet_name}"
             new_name = st.text_input("Frame Name", key=name_key)
             new_status = st.selectbox("Status", ["InHouse", "OutHouse", "InRepair"], key=status_key)
-            if st.button("Add Frame", key=f"add_btn_{table_name}"):
+            if st.button("Add Frame", key=f"add_btn_{sheet_name}"):
                 if new_name.strip():
-                    success, msg = add_frame(table_name, new_name.strip(), new_status)
+                    success, msg = gs_db.add_frame(sheet_name, new_name.strip(), new_status)
                     if success:
                         st.session_state.pop(name_key, None)
                         st.session_state.pop(status_key, None)
@@ -106,15 +146,15 @@ def render_table_page(table_name, label):
 
     col1, col2 = st.columns(2)
     with col1:
-        search_query = st.text_input("🔍 Search Frame Name", key=f"search_{table_name}")
+        search_query = st.text_input("🔍 Search Frame Name", key=f"search_{sheet_name}")
     with col2:
-        status_filter = st.selectbox("Filter by Status", ["All", "InHouse", "OutHouse", "InRepair"], key=f"filter_{table_name}")
+        status_filter = st.selectbox("Filter by Status", ["All", "InHouse", "OutHouse", "InRepair"], key=f"filter_{sheet_name}")
 
-    rows = get_frames(table_name)
+    rows = gs_db.get_frames(sheet_name)
     if search_query:
-        rows = [r for r in rows if fuzz.partial_ratio(search_query.lower(), r[1].lower()) > 70]
+        rows = [r for r in rows if fuzz.partial_ratio(search_query.lower(), r.frame_name.lower()) > 70]
     if status_filter != "All":
-        rows = [r for r in rows if r[2] == status_filter]
+        rows = [r for r in rows if r.status == status_filter]
 
     st.write(f"### 📋 {label} Table View ({len(rows)} items)")
 
@@ -122,16 +162,15 @@ def render_table_page(table_name, label):
     total_items = len(rows)
     total_pages = max((total_items - 1) // items_per_page + 1, 1)
 
-    if f"page_{table_name}" not in st.session_state:
-        st.session_state[f"page_{table_name}"] = 1
+    if f"page_{sheet_name}" not in st.session_state:
+        st.session_state[f"page_{sheet_name}"] = 1
 
     current_page = st.number_input(
         "Page", min_value=1, max_value=total_pages,
-        value=st.session_state[f"page_{table_name}"],
-        step=1, key=f"page_{table_name}_input"
+        value=st.session_state[f"page_{sheet_name}"],
+        step=1, key=f"page_{sheet_name}_input"
     )
-
-    st.session_state[f"page_{table_name}"] = current_page
+    st.session_state[f"page_{sheet_name}"] = current_page
 
     start_idx = (current_page - 1) * items_per_page
     end_idx = start_idx + items_per_page
@@ -140,23 +179,26 @@ def render_table_page(table_name, label):
     if paginated_rows:
         st.markdown("<div class='scroll-table'><table class='custom-table'>", unsafe_allow_html=True)
         st.markdown("<thead><tr><th>Frame Name</th><th>Status</th><th>Actions</th></tr></thead><tbody>", unsafe_allow_html=True)
-        for fid, name, status in paginated_rows:
-            with st.form(f"action_form_{table_name}_{fid}"):
+        for row in paginated_rows:
+            fid = row.id
+            name = row.frame_name
+            status = row.status
+            with st.form(f"action_form_{sheet_name}_{fid}"):
                 st.markdown(f"<tr><td>{name}</td><td>{status_tag(status)}</td><td>", unsafe_allow_html=True)
                 edit_col, delete_col = st.columns([1, 1])
                 with edit_col:
-                    new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{fid}_{table_name}")
+                    new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{fid}_{sheet_name}")
                 with delete_col:
-                    new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{fid}_{table_name}")
+                    new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{fid}_{sheet_name}")
                 save, delete = st.columns([1, 1])
                 with save:
                     if st.form_submit_button("💾 Save"):
-                        update_frame(table_name, fid, new_name, new_status)
+                        gs_db.update_frame(sheet_name, fid, new_name, new_status)
                         st.session_state["success_message"] = "Updated successfully."
                         st.rerun()
                 with delete:
                     if st.form_submit_button("🗑️ Delete"):
-                        delete_frame(table_name, fid)
+                        gs_db.delete_frame(sheet_name, fid)
                         st.session_state["success_message"] = f"Deleted: {name}"
                         st.rerun()
                 st.markdown("</td></tr>", unsafe_allow_html=True)
@@ -164,78 +206,15 @@ def render_table_page(table_name, label):
     else:
         st.info("No data available.")
 
-    if st.button("📤 Export to Excel", key=f"export_{table_name}"):
-        path = export_to_excel(table_name, label)
+    if st.button("📤 Export to Excel", key=f"export_{sheet_name}"):
+        path = gs_db.export_to_excel(sheet_name)
         with open(path, "rb") as f:
-            st.download_button("Download Excel", data=f, file_name=os.path.basename(path),
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-# ---------- DATABASE FUNCTIONS ----------
-
-def init_table(table_name):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute(f'''
-        CREATE TABLE IF NOT EXISTS {table_name} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            frame_name TEXT UNIQUE,
-            status TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-def get_frames(table_name):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT id, frame_name, status FROM {table_name}")
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
-
-def add_frame(table_name, frame_name, status):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    try:
-        cursor.execute(f"INSERT INTO {table_name} (frame_name, status) VALUES (?, ?)", (frame_name, status))
-        conn.commit()
-        return True, f"Frame '{frame_name}' added."
-    except sqlite3.IntegrityError:
-        return False, f"Frame '{frame_name}' already exists."
-    finally:
-        conn.close()
-
-def update_frame(table_name, frame_id, new_name, new_status):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute(f"UPDATE {table_name} SET frame_name = ?, status = ? WHERE id = ?", (new_name, new_status, frame_id))
-    conn.commit()
-    conn.close()
-
-def delete_frame(table_name, frame_id):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute(f"DELETE FROM {table_name} WHERE id = ?", (frame_id,))
-    conn.commit()
-    conn.close()
-
-def export_to_excel(table_name, label):
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query(f"SELECT frame_name, status FROM {table_name}", conn)
-    conn.close()
-    os.makedirs("exports", exist_ok=True)
-    path = f"exports/{table_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-    df.to_excel(path, index=False)
-    return path
+            st.download_button("Download Excel", data=f, file_name=os.path.basename(path), mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # ---------- MAIN ----------
-
 st.sidebar.image("logo.png", width=80)
 st.sidebar.title("Jubilee Inventory")
 page = st.sidebar.radio("Navigation", ["Design Frame Tracker", "BP Frame Tracker"])
-
-init_table("design_frames")
-init_table("bp_frames")
 
 if page == "Design Frame Tracker":
     render_table_page("design_frames", "Design Frame Tracker")
