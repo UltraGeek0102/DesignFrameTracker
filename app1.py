@@ -1,27 +1,21 @@
 import streamlit as st
+import gspread
 import pandas as pd
 import os
 from datetime import datetime
 from rapidfuzz import fuzz
-import gspread
 from google.oauth2.service_account import Credentials
 
-# ---------- Google Sheets Setup ----------
-SHEET_NAME = "FrameTracker"
-WORKSHEET_MAP = {
-    "design_frames": "DesignFrames",
-    "bp_frames": "BPFrames"
-}
-
-# Define Google API scope
+# ---------- CONFIG ----------
 SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
-# Load credentials from file
-creds = Credentials.from_service_account_file("service_account.json", scopes=SCOPE)
-client = gspread.authorize(creds)
+credentials = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=SCOPE)
+client = gspread.authorize(credentials)
+sheet = client.open("design frame tracker").worksheet("Sheet1")
+
 
 # ---------- Streamlit Setup ----------
 st.set_page_config(
