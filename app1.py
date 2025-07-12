@@ -2,6 +2,7 @@ import streamlit as st
 import gspread
 import pandas as pd
 import os
+import json
 from datetime import datetime
 from rapidfuzz import fuzz
 from google.oauth2.service_account import Credentials
@@ -12,25 +13,26 @@ SCOPE = [
     "https://www.googleapis.com/auth/drive"
 ]
 
+# Load service account credentials
+SERVICE_ACCOUNT_INFO = json.loads(st.secrets["gcp_service_account"])
 credentials = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=SCOPE)
 client = gspread.authorize(credentials)
-sheet = client.open("design frame tracker").worksheet("Sheet1")
 
+# Sheet setup
+SHEET_NAME = "design frame tracker"
+WORKSHEET_MAP = {
+    "design_frames": "Sheet1",
+    "bp_frames": "Sheet2"
+}
 
 # ---------- Streamlit Setup ----------
-st.set_page_config(
-    page_title="Jubilee Frame Tracker",
-    page_icon="favicon.ico",
-    layout="wide"
-)
+st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", layout="wide")
 
 # ---------- CSS ----------
 st.markdown("""
     <style>
         @media (max-width: 768px) {
-            .block-container {
-                padding: 1rem !important;
-            }
+            .block-container { padding: 1rem !important; }
         }
         .status-tag {
             color: white;
@@ -38,15 +40,9 @@ st.markdown("""
             padding: 4px 8px;
             border-radius: 4px;
         }
-        .status-inhouse {
-            background-color: green;
-        }
-        .status-outhouse {
-            background-color: red;
-        }
-        .status-inrepair {
-            background-color: orange;
-        }
+        .status-inhouse { background-color: green; }
+        .status-outhouse { background-color: red; }
+        .status-inrepair { background-color: orange; }
         .scroll-table {
             overflow-x: auto;
             max-height: 400px;
@@ -62,9 +58,7 @@ st.markdown("""
             padding: 8px;
             text-align: center;
         }
-        table.custom-table th {
-            background-color: #222;
-        }
+        table.custom-table th { background-color: #222; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -80,17 +74,18 @@ def status_tag(status):
 def get_worksheet(table_name):
     return client.open(SHEET_NAME).worksheet(WORKSHEET_MAP[table_name])
 
+@st.cache_data(ttl=60)
 def read_frames(table_name):
     ws = get_worksheet(table_name)
     records = ws.get_all_records()
-    return [(i + 2, row["Frame Name"], row["Status"]) for i, row in enumerate(records)]  # 2 = 1 header + 1 index offset
+    return [(i + 2, row["Frame Name"], row["Status"]) for i, row in enumerate(records)]
 
 def add_frame(table_name, frame_name, status):
     ws = get_worksheet(table_name)
     existing_names = [row["Frame Name"] for row in ws.get_all_records()]
     if frame_name in existing_names:
         return False, f"Frame '{frame_name}' already exists."
-    ws.append_row([frame_name, status])
+    ws.append_row([frame_name, status], value_input_option="USER_ENTERED")
     return True, f"Frame '{frame_name}' added."
 
 def update_frame(table_name, row_index, new_name, new_status):
@@ -101,7 +96,7 @@ def delete_frame(table_name, row_index):
     ws = get_worksheet(table_name)
     ws.delete_rows(row_index)
 
-def export_to_excel(table_name, label):
+def export_to_excel(table_name):
     ws = get_worksheet(table_name)
     data = ws.get_all_values()
     df = pd.DataFrame(data[1:], columns=data[0])
@@ -110,6 +105,7 @@ def export_to_excel(table_name, label):
     df.to_excel(path, index=False)
     return path
 
+# ---------- Main Renderer ----------
 def render_table_page(table_name, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
@@ -160,23 +156,17 @@ def render_table_page(table_name, label):
     st.write(f"### 📋 {label} Table View ({len(rows)} items)")
 
     items_per_page = 10
-    total_items = len(rows)
-    total_pages = max((total_items - 1) // items_per_page + 1, 1)
+    total_pages = max((len(rows) - 1) // items_per_page + 1, 1)
 
     if f"page_{table_name}" not in st.session_state:
         st.session_state[f"page_{table_name}"] = 1
 
     current_page = st.number_input(
         "Page", min_value=1, max_value=total_pages,
-        value=st.session_state[f"page_{table_name}"],
-        step=1, key=f"page_{table_name}_input"
-    )
+        value=st.session_state[f"page_{table_name}"], step=1, key=f"page_{table_name}_input")
 
     st.session_state[f"page_{table_name}"] = current_page
-
-    start_idx = (current_page - 1) * items_per_page
-    end_idx = start_idx + items_per_page
-    paginated_rows = rows[start_idx:end_idx]
+    paginated_rows = rows[(current_page - 1) * items_per_page: current_page * items_per_page]
 
     if paginated_rows:
         st.markdown("<div class='scroll-table'><table class='custom-table'>", unsafe_allow_html=True)
@@ -206,7 +196,7 @@ def render_table_page(table_name, label):
         st.info("No data available.")
 
     if st.button("📤 Export to Excel", key=f"export_{table_name}"):
-        path = export_to_excel(table_name, label)
+        path = export_to_excel(table_name)
         with open(path, "rb") as f:
             st.download_button("Download Excel", data=f, file_name=os.path.basename(path),
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
