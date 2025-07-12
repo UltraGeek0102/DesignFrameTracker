@@ -86,22 +86,23 @@ def get_sheet_data_and_hash(table_name):
     headers_raw = values[0]
     data_rows = values[1:]
 
-    headers_lower = [h.strip().lower() for h in headers_raw]
-    header_map = {h.lower(): h for h in headers_raw}
-
-    df = pd.DataFrame(data_rows, columns=headers_lower)
-    records = df.to_dict(orient="records")
+    # Normalize column headers and create header map
+    headers = [h.strip().lower() for h in headers_raw]
+    header_map = {h: i for i, h in enumerate(headers)}
 
     data_hash = hashlib.md5(str(time.time()).encode()).hexdigest()
 
     processed_rows = []
     skipped = 0
-    for i, row in enumerate(records):
-        frame_name = row.get("frame name")
-        status = row.get("status")
-        if frame_name and status:
-            processed_rows.append((i + 2, frame_name, status))
-        else:
+    for i, row in enumerate(data_rows):
+        try:
+            frame_name = row[header_map.get("frame name", -1)].strip() if header_map.get("frame name") is not None else None
+            status = row[header_map.get("status", -1)].strip() if header_map.get("status") is not None else None
+            if frame_name and status:
+                processed_rows.append((i + 2, frame_name, status))
+            else:
+                skipped += 1
+        except Exception:
             skipped += 1
 
     if skipped > 0:
@@ -138,7 +139,6 @@ def export_to_excel(table_name):
     path = f"exports/{table_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     df.to_excel(path, index=False)
     return path
-
 
 # ---------- Main Renderer ----------
 def render_table_page(table_name, label):
