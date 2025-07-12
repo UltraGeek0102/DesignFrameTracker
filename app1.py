@@ -116,8 +116,7 @@ def add_frame(table_name, frame_name, status):
 
     records = ws.get_all_values()
     new_hash = hashlib.md5(json.dumps(records, sort_keys=True).encode()).hexdigest()
-    st.session_state[f"last_hash_{table_name}"] = new_hash
-
+   
     return True, f"Frame '{frame_name}' added."
 
 def update_frame(table_name, row_index, new_name, new_status):
