@@ -82,16 +82,17 @@ def get_sheet_data_and_hash(table_name):
     data_hash = hashlib.md5(json.dumps(records, sort_keys=True).encode()).hexdigest()
 
     # Safely handle missing keys
-    processed_rows = [
-        (i + 2, row.get("Frame Name", "Unnamed Frame"), row.get("Status", "Unknown"))
-        for i, row in enumerate(records)
-        if "Frame Name" in row and "Status" in row
-    ]
+    processed_rows = []
+    for i, row in enumerate(records):
+        frame_name = row.get("Frame Name")
+        status = row.get("Status")
+        if frame_name is not None and status is not None:
+            processed_rows.append((i + 2, frame_name, status))
     return processed_rows, data_hash
 
 def add_frame(table_name, frame_name, status):
     ws = get_worksheet(table_name)
-    existing_names = [row["Frame Name"] for row in ws.get_all_records()]
+    existing_names = [row["Frame Name"] for row in ws.get_all_records() if "Frame Name" in row]
     if frame_name in existing_names:
         return False, f"Frame '{frame_name}' already exists."
 
