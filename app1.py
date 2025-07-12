@@ -78,28 +78,37 @@ def get_worksheet(table_name):
 
 def get_sheet_data_and_hash(table_name):
     ws = get_worksheet(table_name)
-    records = ws.get_all_records()
+    values = ws.get_all_values()
+
+    if not values or len(values) < 2:
+        return [], ""
+
+    headers = values[0]
+    data_rows = values[1:]
+
+    df = pd.DataFrame(data_rows, columns=headers)
+    records = df.to_dict(orient="records")
+
     data_hash = hashlib.md5(json.dumps(records, sort_keys=True).encode()).hexdigest()
 
-    # Safely handle missing keys
     processed_rows = []
     for i, row in enumerate(records):
         frame_name = row.get("Frame Name")
         status = row.get("Status")
-        if frame_name is not None and status is not None:
+        if frame_name and status:
             processed_rows.append((i + 2, frame_name, status))
+
     return processed_rows, data_hash
 
 def add_frame(table_name, frame_name, status):
     ws = get_worksheet(table_name)
-    existing_names = [row["Frame Name"] for row in ws.get_all_records() if "Frame Name" in row]
+    existing_names = [row[0] for row in ws.get_all_values()[1:] if row and len(row) > 0]
     if frame_name in existing_names:
         return False, f"Frame '{frame_name}' already exists."
 
     ws.append_row([frame_name, status], value_input_option="USER_ENTERED")
 
-    # Update hash to force rerender
-    records = ws.get_all_records()
+    records = ws.get_all_values()
     new_hash = hashlib.md5(json.dumps(records, sort_keys=True).encode()).hexdigest()
     st.session_state[f"last_hash_{table_name}"] = new_hash
 
@@ -139,7 +148,6 @@ def render_table_page(table_name, label):
     with col3:
         st.markdown(f"<h1 style='margin-top: 0.6rem;'>{label}</h1>", unsafe_allow_html=True)
 
-    # --- Auto refresh only if change is detected ---
     rows, current_hash = get_sheet_data_and_hash(table_name)
     hash_key = f"last_hash_{table_name}"
     refresh_key = f"last_refresh_{table_name}"
@@ -153,7 +161,6 @@ def render_table_page(table_name, label):
         st.session_state[hash_key] = current_hash
         st.experimental_rerun()
 
-    # Sidebar form
     if st.session_state.show_sidebar:
         with st.sidebar:
             st.header(f"➕ Add New Frame ({label})")
