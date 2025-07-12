@@ -83,7 +83,7 @@ def get_sheet_data_and_hash(table_name):
     if not values or len(values) < 2:
         return [], ""
 
-    headers = values[0]
+    headers = [h.strip().lower() for h in values[0]]
     data_rows = values[1:]
 
     df = pd.DataFrame(data_rows, columns=headers)
@@ -94,8 +94,8 @@ def get_sheet_data_and_hash(table_name):
     processed_rows = []
     skipped = 0
     for i, row in enumerate(records):
-        frame_name = row.get("Frame Name")
-        status = row.get("Status")
+        frame_name = row.get("frame name")
+        status = row.get("status")
         if frame_name and status:
             processed_rows.append((i + 2, frame_name, status))
         else:
