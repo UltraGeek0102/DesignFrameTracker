@@ -83,20 +83,22 @@ def get_sheet_data_and_hash(table_name):
     if not values or len(values) < 2:
         return [], ""
 
-    headers = [h.strip().lower() for h in values[0]]
+    headers_raw = values[0]
+    headers = [h.strip().lower() for h in headers_raw]
     data_rows = values[1:]
+
+    header_map = {h.lower(): h for h in headers_raw}
 
     df = pd.DataFrame(data_rows, columns=headers)
     records = df.to_dict(orient="records")
 
-    # Force cache refresh every time
     data_hash = hashlib.md5(str(time.time()).encode()).hexdigest()
 
     processed_rows = []
     skipped = 0
     for i, row in enumerate(records):
-        frame_name = row.get("frame name")
-        status = row.get("status")
+        frame_name = row.get("frame name") or row.get(header_map.get("frame name"))
+        status = row.get("status") or row.get(header_map.get("status"))
         if frame_name and status:
             processed_rows.append((i + 2, frame_name, status))
         else:
@@ -117,7 +119,7 @@ def add_frame(table_name, frame_name, status):
 
     records = ws.get_all_values()
     new_hash = hashlib.md5(json.dumps(records, sort_keys=True).encode()).hexdigest()
-   
+
     return True, f"Frame '{frame_name}' added."
 
 def update_frame(table_name, row_index, new_name, new_status):
@@ -256,4 +258,3 @@ if page == "Design Frame Tracker":
     render_table_page("design_frames", "Design Frame Tracker")
 elif page == "BP Frame Tracker":
     render_table_page("bp_frames", "BP Frame Tracker")
-
