@@ -80,7 +80,13 @@ def get_sheet_data_and_hash(table_name):
     ws = get_worksheet(table_name)
     records = ws.get_all_records()
     data_hash = hashlib.md5(json.dumps(records, sort_keys=True).encode()).hexdigest()
-    processed_rows = [(i + 2, row["Frame Name"], row["Status"]) for i, row in enumerate(records)]
+
+    # Safely handle missing keys
+    processed_rows = [
+        (i + 2, row.get("Frame Name", "Unnamed Frame"), row.get("Status", "Unknown"))
+        for i, row in enumerate(records)
+        if "Frame Name" in row and "Status" in row
+    ]
     return processed_rows, data_hash
 
 def add_frame(table_name, frame_name, status):
