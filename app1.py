@@ -92,11 +92,17 @@ def get_sheet_data_and_hash(table_name):
     data_hash = hashlib.md5(json.dumps(records, sort_keys=True).encode()).hexdigest()
 
     processed_rows = []
+    skipped = 0
     for i, row in enumerate(records):
         frame_name = row.get("Frame Name")
         status = row.get("Status")
         if frame_name and status:
             processed_rows.append((i + 2, frame_name, status))
+        else:
+            skipped += 1
+
+    if skipped > 0:
+        st.warning(f"⚠️ Skipped {skipped} row(s) with missing 'Frame Name' or 'Status'.")
 
     return processed_rows, data_hash
 
