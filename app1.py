@@ -72,7 +72,25 @@ def status_tag(status):
     return f"<span class='status-tag {css_class}'>{status}</span>"
 
 def get_worksheet(table_name):
-    return client.open(SHEET_NAME).worksheet(WORKSHEET_MAP[table_name])
+    try:
+        spreadsheet = client.open(SHEET_NAME)
+        st.write(f"✅ Opened Spreadsheet: `{spreadsheet.title}`")
+
+        sheet_names = [ws.title for ws in spreadsheet.worksheets()]
+        st.write("📄 Available Sheet Tabs:", sheet_names)
+
+        target_sheet = WORKSHEET_MAP[table_name]
+        st.write(f"🔍 Looking for Worksheet: `{target_sheet}`")
+
+        worksheet = spreadsheet.worksheet(target_sheet)
+        st.write("✅ Worksheet loaded successfully")
+        return worksheet
+
+    except Exception as e:
+        st.error("❌ Error while accessing worksheet.")
+        st.exception(e)
+        raise e
+
 
 @st.cache_data(ttl=60)
 def read_frames(table_name):
