@@ -6,6 +6,8 @@ import json
 from datetime import datetime
 from rapidfuzz import fuzz
 from google.oauth2.service_account import Credentials
+import hashlib
+import time
 
 # ---------- CONFIG ----------
 SCOPE = [
@@ -14,12 +16,12 @@ SCOPE = [
 ]
 
 # Load service account credentials
-SERVICE_ACCOUNT_INFO = st.secrets["gcp_service_account"]
+SERVICE_ACCOUNT_INFO = json.loads(st.secrets["gcp_service_account"])
 credentials = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=SCOPE)
 client = gspread.authorize(credentials)
 
 # Sheet setup
-SHEET_NAME = st.text_input("Enter Sheet Name", value="design frame tracker")
+SHEET_NAME = "design frame tracker"
 WORKSHEET_MAP = {
     "design_frames": "Sheet1",
     "bp_frames": "Sheet2"
@@ -72,31 +74,14 @@ def status_tag(status):
     return f"<span class='status-tag {css_class}'>{status}</span>"
 
 def get_worksheet(table_name):
-    try:
-        spreadsheet = client.open(SHEET_NAME)
-        st.write(f"✅ Opened Spreadsheet: `{spreadsheet.title}`")
+    return client.open(SHEET_NAME).worksheet(WORKSHEET_MAP[table_name])
 
-        sheet_names = [ws.title for ws in spreadsheet.worksheets()]
-        st.write("📄 Available Sheet Tabs:", sheet_names)
-
-        target_sheet = WORKSHEET_MAP[table_name]
-        st.write(f"🔍 Looking for Worksheet: `{target_sheet}`")
-
-        worksheet = spreadsheet.worksheet(target_sheet)
-        st.write("✅ Worksheet loaded successfully")
-        return worksheet
-
-    except Exception as e:
-        st.error("❌ Error while accessing worksheet.")
-        st.exception(e)
-        raise e
-
-
-@st.cache_data(ttl=60)
-def read_frames(table_name):
+def get_sheet_data_and_hash(table_name):
     ws = get_worksheet(table_name)
     records = ws.get_all_records()
-    return [(i + 2, row["Frame Name"], row["Status"]) for i, row in enumerate(records)]
+    data_hash = hashlib.md5(json.dumps(records, sort_keys=True).encode()).hexdigest()
+    processed_rows = [(i + 2, row["Frame Name"], row["Status"]) for i, row in enumerate(records)]
+    return processed_rows, data_hash
 
 def add_frame(table_name, frame_name, status):
     ws = get_worksheet(table_name)
@@ -140,6 +125,21 @@ def render_table_page(table_name, label):
     with col3:
         st.markdown(f"<h1 style='margin-top: 0.6rem;'>{label}</h1>", unsafe_allow_html=True)
 
+    # --- Auto refresh only if change is detected ---
+    rows, current_hash = get_sheet_data_and_hash(table_name)
+    hash_key = f"last_hash_{table_name}"
+    refresh_key = f"last_refresh_{table_name}"
+
+    if refresh_key not in st.session_state:
+        st.session_state[refresh_key] = time.time()
+
+    if hash_key not in st.session_state:
+        st.session_state[hash_key] = current_hash
+    elif st.session_state[hash_key] != current_hash:
+        st.session_state[hash_key] = current_hash
+        st.experimental_rerun()
+
+    # Sidebar form
     if st.session_state.show_sidebar:
         with st.sidebar:
             st.header(f"➕ Add New Frame ({label})")
@@ -165,7 +165,6 @@ def render_table_page(table_name, label):
     with col2:
         status_filter = st.selectbox("Filter by Status", ["All", "InHouse", "OutHouse", "InRepair"], key=f"filter_{table_name}")
 
-    rows = read_frames(table_name)
     if search_query:
         rows = [r for r in rows if fuzz.partial_ratio(search_query.lower(), r[1].lower()) > 70]
     if status_filter != "All":
