@@ -89,7 +89,8 @@ def get_sheet_data_and_hash(table_name):
     df = pd.DataFrame(data_rows, columns=headers)
     records = df.to_dict(orient="records")
 
-    data_hash = hashlib.md5(json.dumps(records, sort_keys=True).encode()).hexdigest()
+    # Force cache refresh every time
+    data_hash = hashlib.md5(str(time.time()).encode()).hexdigest()
 
     processed_rows = []
     skipped = 0
@@ -255,3 +256,4 @@ if page == "Design Frame Tracker":
     render_table_page("design_frames", "Design Frame Tracker")
 elif page == "BP Frame Tracker":
     render_table_page("bp_frames", "BP Frame Tracker")
+
