@@ -96,8 +96,10 @@ def get_sheet_data_and_hash(table_name):
     skipped = 0
     for i, row in enumerate(data_rows):
         try:
-            frame_name = row[header_map.get("frame name", -1)].strip() if header_map.get("frame name") is not None else None
-            status = row[header_map.get("status", -1)].strip() if header_map.get("status") is not None else None
+            frame_index = header_map.get("frame name")
+            status_index = header_map.get("status")
+            frame_name = row[frame_index].strip() if frame_index is not None and frame_index < len(row) else None
+            status = row[status_index].strip() if status_index is not None and status_index < len(row) else None
             if frame_name and status:
                 processed_rows.append((i + 2, frame_name, status))
             else:
