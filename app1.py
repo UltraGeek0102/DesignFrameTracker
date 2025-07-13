@@ -32,16 +32,20 @@ st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", 
 
 # Inject favicon manually for mobile (base64 inline)
 # Inject favicon and Apple Touch Icon
-if os.path.exists("favicon.ico"):
-    with open("favicon.ico", "rb") as f:
-        favicon_b64 = base64.b64encode(f.read()).decode()
-
+# Inject favicon and apple-touch-icon
+if os.path.exists("apple-touch-icon.png"):
     st.markdown("""
-    <link rel="icon" type="image/png" sizes="256x256" href="/apple-touch-icon.png">
-    <link rel="apple-touch-icon" sizes="256x256" href="/apple-touch-icon.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-""", unsafe_allow_html=True)
+        <link rel="icon" type="image/png" sizes="256x256" href="/apple-touch-icon.png">
+        <link rel="apple-touch-icon" sizes="256x256" href="/apple-touch-icon.png">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="mobile-web-app-capable" content="yes">
+    """, unsafe_allow_html=True)
+
+if os.path.exists("favicon.ico"):
+    st.markdown("""
+        <link rel="shortcut icon" href="/favicon.ico">
+    """, unsafe_allow_html=True)
+
 
 # ---------- CSS ----------
 st.markdown("""
