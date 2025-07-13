@@ -127,16 +127,13 @@ def render_table_page(table, label):
     if "success_message" in st.session_state:
         st.success(st.session_state.pop("success_message"))
 
-    # Centered header with Streamlit layout
-    # Fully centered hosted logo + header
+    # Centered header with logo and title
     st.markdown(f"""
-        <div style='display: flex; flex-direction: column; align-items: center; margin-top: 2rem; margin-bottom: 2rem;'>
-            <img src="https://i.imgur.com/7RJ1dKr.png" width="120" style="margin-bottom: 1rem;" />
-            <h1 style='font-weight: bold; color: white;'>{label}</h1>
+        <div style='display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin-top: 2rem; margin-bottom: 2rem;'>
+            <img src="https://i.imgur.com/7RJ1dKr.png" style='width: 100px; margin-bottom: 1rem;' />
+            <h1 style='font-weight: 700; color: white; margin: 0;'>{label}</h1>
         </div>
     """, unsafe_allow_html=True)
-
-
 
     rows, hash_val = get_sheet_data_and_hash(table)
     if st.session_state.get(f"last_hash_{table}") != hash_val:
