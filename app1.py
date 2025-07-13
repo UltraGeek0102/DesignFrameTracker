@@ -4,6 +4,7 @@ import gspread
 import pandas as pd
 import os
 import json
+import base64
 from datetime import datetime
 from rapidfuzz import fuzz
 from google.oauth2.service_account import Credentials
@@ -127,13 +128,16 @@ def render_table_page(table, label):
     if "success_message" in st.session_state:
         st.success(st.session_state.pop("success_message"))
 
-    # Centered header with logo and title
-    st.markdown(f"""
+    # Inject base64-encoded logo
+    with open("logo.png", "rb") as f:
+        encoded = base64.b64encode(f.read()).decode()
+        logo_html = f"""
         <div style='display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin-top: 2rem; margin-bottom: 2rem;'>
-            <img src="https://i.imgur.com/7RJ1dKr.png" style='width: 100px; margin-bottom: 1rem;' />
+            <img src='data:image/png;base64,{encoded}' style='width: 100px; margin-bottom: 1rem;' />
             <h1 style='font-weight: 700; color: white; margin: 0;'>{label}</h1>
         </div>
-    """, unsafe_allow_html=True)
+        """
+        st.markdown(logo_html, unsafe_allow_html=True)
 
     rows, hash_val = get_sheet_data_and_hash(table)
     if st.session_state.get(f"last_hash_{table}") != hash_val:
