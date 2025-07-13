@@ -58,7 +58,10 @@ st.markdown("""
         }
         table.custom-table th { background-color: #222; }
         .centered-header {
-            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             margin-top: 1rem;
             margin-bottom: 1rem;
         }
@@ -131,7 +134,7 @@ def render_table_page(table, label):
     with st.container():
         st.markdown("<div class='centered-header'>", unsafe_allow_html=True)
         st.image("logo.png", width=64)
-        st.markdown(f"<h1>{label}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='text-align: center'>{label}</h1>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     rows, hash_val = get_sheet_data_and_hash(table)
