@@ -68,7 +68,7 @@ def status_tag(status):
 def get_worksheet(table):
     return client.open(SHEET_NAME).worksheet(WORKSHEET_MAP[table])
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=5)
 def read_frames(table):
     ws = get_worksheet(table)
     values = ws.get_all_values()
@@ -141,6 +141,7 @@ def render_table_page(table, label):
                 if name.strip():
                     success, msg = add_frame(table, name.strip(), status)
                     if success:
+                        st.cache_data.clear()
                         st.session_state.pop(f"add_name_{table}", None)
                         st.session_state.pop(f"add_status_{table}", None)
                         st.rerun()
