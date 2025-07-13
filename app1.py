@@ -57,6 +57,14 @@ st.markdown("""
             text-align: center;
         }
         table.custom-table th { background-color: #222; }
+        .centered-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -122,9 +130,14 @@ def render_table_page(table, label):
     if "success_message" in st.session_state:
         st.success(st.session_state.pop("success_message"))
 
-    st.columns([1, 1.5, 6])[0].button("☰", on_click=lambda: st.session_state.update(show_sidebar=not st.session_state.show_sidebar))
-    st.columns([1, 1.5, 6])[1].image("logo.png", width=32)
-    st.columns([1, 1.5, 6])[2].markdown(f"<h1 style='margin-top: 0.6rem;'>{label}</h1>", unsafe_allow_html=True)
+    # Centered header with logo and title
+    with st.container():
+        st.markdown("""
+        <div class='centered-header'>
+            <img src='https://designframetracker.streamlit.app/logo.png' width='64' style='margin-bottom: 0.5rem;'>
+            <h1>{}</h1>
+        </div>
+        """.format(label), unsafe_allow_html=True)
 
     rows, hash_val = get_sheet_data_and_hash(table)
     if st.session_state.get(f"last_hash_{table}") != hash_val:
