@@ -128,11 +128,14 @@ def render_table_page(table, label):
         st.success(st.session_state.pop("success_message"))
 
     # Centered header with Streamlit layout
-    with st.container():
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.image("logo.png", width=96)
-            st.markdown(f"<h1 style='text-align:center'>{label}</h1>", unsafe_allow_html=True)
+    # Perfectly centered logo and title
+    st.markdown(f"""
+        <div style='text-align: center; margin-top: 2rem; margin-bottom: 2rem;'>
+            <img src="https://raw.githubusercontent.com/your-username/your-repo/main/logo.png" width="96" style="display: block; margin-left: auto; margin-right: auto;" />
+            <h1 style='text-align:center; font-weight: bold;'>{label}</h1>
+       </div>
+  """, unsafe_allow_html=True)
+
 
     rows, hash_val = get_sheet_data_and_hash(table)
     if st.session_state.get(f"last_hash_{table}") != hash_val:
