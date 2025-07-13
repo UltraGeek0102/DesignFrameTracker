@@ -197,7 +197,7 @@ def render_table_page(table, label):
                 new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{row}_{table}")
                 save_col, delete_col = st.columns([1, 1])
                 save_clicked = save_col.form_submit_button("💾 Save")
-                delete_clicked = delete_col.form_submit_button("🗑️ Delete")
+                delete_clicked = delete_col.form_submit_button("🖑️ Delete")
 
                 if save_clicked:
                     update_frame(table, row, new_name, new_status)
@@ -216,7 +216,7 @@ def render_table_page(table, label):
     else:
         st.info("No data available.")
 
-    if st.button("📤 Export to Excel", key=f"export_{table}"):
+    if st.button("📄 Export to Excel", key=f"export_{table}"):
         path = export_to_excel(table)
         with open(path, "rb") as f:
             st.download_button("Download Excel", data=f, file_name=os.path.basename(path),
