@@ -131,7 +131,6 @@ def render_table_page(table, label):
         st.session_state[f"last_hash_{table}"] = hash_val
         st.rerun()
 
-    # Sidebar for adding frame
     if st.session_state.show_sidebar:
         with st.sidebar:
             st.header(f"➕ Add New Frame ({label})")
@@ -150,7 +149,6 @@ def render_table_page(table, label):
                 else:
                     st.warning("Frame name is required.")
 
-    # Search and filter
     search = st.text_input("🔍 Search Frame Name", key=f"search_{table}")
     status_filter = st.selectbox("Filter by Status", ["All", "InHouse", "OutHouse", "InRepair"], key=f"filter_{table}")
 
@@ -174,14 +172,22 @@ def render_table_page(table, label):
                 st.markdown(f"<tr><td>{name}</td><td>{status_tag(status)}</td><td>", unsafe_allow_html=True)
                 new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{row}_{table}")
                 new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{row}_{table}")
-                if st.form_submit_button("💾 Save"):
+                save_col, delete_col = st.columns([1, 1])
+                save_clicked = save_col.form_submit_button("💾 Save")
+                delete_clicked = delete_col.form_submit_button("🗑️ Delete")
+
+                if save_clicked:
                     update_frame(table, row, new_name, new_status)
+                    st.cache_data.clear()
                     st.session_state["success_message"] = "Updated successfully."
                     st.rerun()
-                if st.form_submit_button("🗑️ Delete"):
+
+                if delete_clicked:
                     delete_frame(table, row)
+                    st.cache_data.clear()
                     st.session_state["success_message"] = f"Deleted: {name}"
                     st.rerun()
+
                 st.markdown("</td></tr>", unsafe_allow_html=True)
         st.markdown("</tbody></table></div>", unsafe_allow_html=True)
     else:
