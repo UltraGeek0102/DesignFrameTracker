@@ -1,4 +1,4 @@
-
+# Optimized and modular version of your Streamlit Frame Tracker
 import streamlit as st
 import gspread
 import pandas as pd
@@ -16,27 +16,22 @@ SCOPE = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-# Load service account credentials
 SERVICE_ACCOUNT_INFO = json.loads(st.secrets["gcp_service_account"])
 credentials = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=SCOPE)
 client = gspread.authorize(credentials)
 
-# Sheet setup
 SHEET_NAME = "design frame tracker"
 WORKSHEET_MAP = {
     "design_frames": "Sheet1",
     "bp_frames": "Sheet2"
 }
 
-# ---------- Streamlit Setup ----------
+# ---------- SETUP ----------
 st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", layout="wide")
 
 # ---------- CSS ----------
 st.markdown("""
     <style>
-        @media (max-width: 768px) {
-            .block-container { padding: 1rem !important; }
-        }
         .status-tag {
             color: white;
             font-weight: bold;
@@ -65,188 +60,134 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ---------- Utilities ----------
+# ---------- UTILS ----------
 def status_tag(status):
-    css_class = {
-        "InHouse": "status-inhouse",
-        "OutHouse": "status-outhouse",
-        "InRepair": "status-inrepair"
-    }.get(status, "")
-    return f"<span class='status-tag {css_class}'>{status}</span>"
+    classes = {"InHouse": "status-inhouse", "OutHouse": "status-outhouse", "InRepair": "status-inrepair"}
+    return f"<span class='status-tag {classes.get(status, '')}'>{status}</span>"
 
-def get_worksheet(table_name):
-    return client.open(SHEET_NAME).worksheet(WORKSHEET_MAP[table_name])
+def get_worksheet(table):
+    return client.open(SHEET_NAME).worksheet(WORKSHEET_MAP[table])
 
 @st.cache_data(show_spinner=False)
-def read_frames(table_name):
-    ws = get_worksheet(table_name)
+def read_frames(table):
+    ws = get_worksheet(table)
     values = ws.get_all_values()
-
     if not values or len(values) < 2:
         return []
 
-    headers_raw = values[0]
+    headers = [h.strip().lower() for h in values[0]]
     data_rows = values[1:]
-    headers = [h.strip().lower() for h in headers_raw]
-    header_map = {h: i for i, h in enumerate(headers)}
-
-    frame_index = header_map.get("frame name")
-    status_index = header_map.get("status")
-
-    if frame_index is None or status_index is None:
-        st.error("❌ Required columns 'Frame Name' or 'Status' not found in the sheet.")
+    hmap = {h: i for i, h in enumerate(headers)}
+    if "frame name" not in hmap or "status" not in hmap:
+        st.error("Missing required headers: 'Frame Name' or 'Status'")
         return []
 
-    processed_rows = []
-    for i, row in enumerate(data_rows):
-        frame_name = row[frame_index].strip() if frame_index < len(row) else None
-        status = row[status_index].strip() if status_index < len(row) else None
-        if frame_name and status:
-            processed_rows.append((i + 2, frame_name, status))
+    return [(i+2, row[hmap["frame name"]], row[hmap["status"]])
+            for i, row in enumerate(data_rows)
+            if len(row) > max(hmap["frame name"], hmap["status"]) and row[hmap["frame name"]] and row[hmap["status"]]]
 
-    return processed_rows
-
-def get_sheet_data_and_hash(table_name):
-    rows = read_frames(table_name)
-    data_hash = hashlib.md5(str(time.time()).encode()).hexdigest()
+def get_sheet_data_and_hash(table):
+    rows = read_frames(table)
+    data_hash = hashlib.md5(json.dumps(rows, sort_keys=True).encode()).hexdigest()
     return rows, data_hash
 
-def add_frame(table_name, frame_name, status):
-    ws = get_worksheet(table_name)
-    existing_names = [row[0] for row in ws.get_all_values()[1:] if row and len(row) > 0]
-    if frame_name in existing_names:
-        return False, f"Frame '{frame_name}' already exists."
+def add_frame(table, name, status):
+    ws = get_worksheet(table)
+    existing = [r[0] for r in ws.get_all_values()[1:] if r]
+    if name in existing:
+        return False, f"Frame '{name}' already exists."
+    ws.append_row([name, status], value_input_option="USER_ENTERED")
+    return True, f"Frame '{name}' added."
 
-    ws.append_row([frame_name, status], value_input_option="USER_ENTERED")
+def update_frame(table, row, name, status):
+    ws = get_worksheet(table)
+    ws.update(f"A{row}:B{row}", [[name, status]])
 
-    records = ws.get_all_values()
-    new_hash = hashlib.md5(json.dumps(records, sort_keys=True).encode()).hexdigest()
+def delete_frame(table, row):
+    get_worksheet(table).delete_rows(row)
 
-    return True, f"Frame '{frame_name}' added."
-
-def update_frame(table_name, row_index, new_name, new_status):
-    ws = get_worksheet(table_name)
-    ws.update(f"A{row_index}:B{row_index}", [[new_name, new_status]])
-
-def delete_frame(table_name, row_index):
-    ws = get_worksheet(table_name)
-    ws.delete_rows(row_index)
-
-def export_to_excel(table_name):
-    ws = get_worksheet(table_name)
-    data = ws.get_all_values()
-    df = pd.DataFrame(data[1:], columns=data[0])
+def export_to_excel(table):
+    ws = get_worksheet(table)
+    df = pd.DataFrame(ws.get_all_values()[1:], columns=ws.get_all_values()[0])
     os.makedirs("exports", exist_ok=True)
-    path = f"exports/{table_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    path = f"exports/{table}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     df.to_excel(path, index=False)
     return path
 
-# ---------- Main Renderer ----------
-def render_table_page(table_name, label):
+# ---------- MAIN PAGE RENDER ----------
+def render_table_page(table, label):
     if "show_sidebar" not in st.session_state:
         st.session_state.show_sidebar = True
 
     if "success_message" in st.session_state:
         st.success(st.session_state.pop("success_message"))
 
-    col1, col2, col3 = st.columns([1, 1.5, 6])
-    with col1:
-        if st.button("☰"):
-            st.session_state.show_sidebar = not st.session_state.show_sidebar
-    with col2:
-        st.image("logo.png", width=32)
-    with col3:
-        st.markdown(f"<h1 style='margin-top: 0.6rem;'>{label}</h1>", unsafe_allow_html=True)
+    st.columns([1, 1.5, 6])[0].button("☰", on_click=lambda: st.session_state.update(show_sidebar=not st.session_state.show_sidebar))
+    st.columns([1, 1.5, 6])[1].image("logo.png", width=32)
+    st.columns([1, 1.5, 6])[2].markdown(f"<h1 style='margin-top: 0.6rem;'>{label}</h1>", unsafe_allow_html=True)
 
-    rows, current_hash = get_sheet_data_and_hash(table_name)
-    hash_key = f"last_hash_{table_name}"
-    refresh_key = f"last_refresh_{table_name}"
-
-    if refresh_key not in st.session_state:
-        st.session_state[refresh_key] = time.time()
-
-    if hash_key not in st.session_state:
-        st.session_state[hash_key] = current_hash
-    elif st.session_state[hash_key] != current_hash:
-        st.session_state[hash_key] = current_hash
+    rows, hash_val = get_sheet_data_and_hash(table)
+    if st.session_state.get(f"last_hash_{table}") != hash_val:
+        st.session_state[f"last_hash_{table}"] = hash_val
         st.experimental_rerun()
 
+    # Sidebar for adding frame
     if st.session_state.show_sidebar:
         with st.sidebar:
             st.header(f"➕ Add New Frame ({label})")
-            name_key = f"add_name_{table_name}"
-            status_key = f"add_status_{table_name}"
-            new_name = st.text_input("Frame Name", key=name_key)
-            new_status = st.selectbox("Status", ["InHouse", "OutHouse", "InRepair"], key=status_key)
-            if st.button("Add Frame", key=f"add_btn_{table_name}"):
-                if new_name.strip():
-                    success, msg = add_frame(table_name, new_name.strip(), new_status)
+            name = st.text_input("Frame Name", key=f"add_name_{table}")
+            status = st.selectbox("Status", ["InHouse", "OutHouse", "InRepair"], key=f"add_status_{table}")
+            if st.button("Add Frame", key=f"add_btn_{table}"):
+                if name.strip():
+                    success, msg = add_frame(table, name.strip(), status)
                     if success:
-                        st.session_state.pop(name_key, None)
-                        st.session_state.pop(status_key, None)
-                        st.session_state.pop(f"search_{table_name}", None)
-                        st.session_state.pop(f"filter_{table_name}", None)
+                        st.session_state.pop(f"add_name_{table}", None)
+                        st.session_state.pop(f"add_status_{table}", None)
                         st.rerun()
                     else:
                         st.warning(msg)
                 else:
                     st.warning("Frame name is required.")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        search_query = st.text_input("🔍 Search Frame Name", key=f"search_{table_name}")
-    with col2:
-        status_filter = st.selectbox("Filter by Status", ["All", "InHouse", "OutHouse", "InRepair"], key=f"filter_{table_name}")
+    # Search and filter
+    search = st.text_input("🔍 Search Frame Name", key=f"search_{table}")
+    status_filter = st.selectbox("Filter by Status", ["All", "InHouse", "OutHouse", "InRepair"], key=f"filter_{table}")
 
-    if search_query:
-        rows = [r for r in rows if fuzz.partial_ratio(search_query.lower(), r[1].lower()) > 70]
+    if search:
+        rows = [r for r in rows if fuzz.partial_ratio(search.lower(), r[1].lower()) > 70]
     if status_filter != "All":
         rows = [r for r in rows if r[2] == status_filter]
 
     st.write(f"### 📋 {label} Table View ({len(rows)} items)")
+    items_pg = 10
+    total_pages = max((len(rows) - 1) // items_pg + 1, 1)
+    current_pg = st.number_input("Page", 1, total_pages, value=st.session_state.get(f"page_{table}", 1), key=f"page_{table}_input")
+    st.session_state[f"page_{table}"] = current_pg
+    paged = rows[(current_pg - 1) * items_pg: current_pg * items_pg]
 
-    items_per_page = 10
-    total_pages = max((len(rows) - 1) // items_per_page + 1, 1)
-
-    if f"page_{table_name}" not in st.session_state:
-        st.session_state[f"page_{table_name}"] = 1
-
-    current_page = st.number_input(
-        "Page", min_value=1, max_value=total_pages,
-        value=st.session_state[f"page_{table_name}"], step=1, key=f"page_{table_name}_input")
-
-    st.session_state[f"page_{table_name}"] = current_page
-    paginated_rows = rows[(current_page - 1) * items_per_page: current_page * items_per_page]
-
-    if paginated_rows:
+    if paged:
         st.markdown("<div class='scroll-table'><table class='custom-table'>", unsafe_allow_html=True)
         st.markdown("<thead><tr><th>Frame Name</th><th>Status</th><th>Actions</th></tr></thead><tbody>", unsafe_allow_html=True)
-        for row_index, name, status in paginated_rows:
-            with st.form(f"action_form_{table_name}_{row_index}"):
+        for row, name, status in paged:
+            with st.form(f"form_{table}_{row}"):
                 st.markdown(f"<tr><td>{name}</td><td>{status_tag(status)}</td><td>", unsafe_allow_html=True)
-                edit_col, delete_col = st.columns([1, 1])
-                with edit_col:
-                    new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{row_index}_{table_name}")
-                with delete_col:
-                    new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{row_index}_{table_name}")
-                save, delete = st.columns([1, 1])
-                with save:
-                    if st.form_submit_button("💾 Save"):
-                        update_frame(table_name, row_index, new_name, new_status)
-                        st.session_state["success_message"] = "Updated successfully."
-                        st.rerun()
-                with delete:
-                    if st.form_submit_button("🗑️ Delete"):
-                        delete_frame(table_name, row_index)
-                        st.session_state["success_message"] = f"Deleted: {name}"
-                        st.rerun()
+                new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{row}_{table}")
+                new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{row}_{table}")
+                if st.form_submit_button("💾 Save"):
+                    update_frame(table, row, new_name, new_status)
+                    st.session_state["success_message"] = "Updated successfully."
+                    st.rerun()
+                if st.form_submit_button("🗑️ Delete"):
+                    delete_frame(table, row)
+                    st.session_state["success_message"] = f"Deleted: {name}"
+                    st.rerun()
                 st.markdown("</td></tr>", unsafe_allow_html=True)
         st.markdown("</tbody></table></div>", unsafe_allow_html=True)
     else:
         st.info("No data available.")
 
-    if st.button("📤 Export to Excel", key=f"export_{table_name}"):
-        path = export_to_excel(table_name)
+    if st.button("📤 Export to Excel", key=f"export_{table}"):
+        path = export_to_excel(table)
         with open(path, "rb") as f:
             st.download_button("Download Excel", data=f, file_name=os.path.basename(path),
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -254,9 +195,9 @@ def render_table_page(table_name, label):
 # ---------- MAIN ----------
 st.sidebar.image("logo.png", width=80)
 st.sidebar.title("Jubilee Inventory")
-page = st.sidebar.radio("Navigation", ["Design Frame Tracker", "BP Frame Tracker"])
+choice = st.sidebar.radio("Navigation", ["Design Frame Tracker", "BP Frame Tracker"])
 
-if page == "Design Frame Tracker":
+if choice == "Design Frame Tracker":
     render_table_page("design_frames", "Design Frame Tracker")
-elif page == "BP Frame Tracker":
+elif choice == "BP Frame Tracker":
     render_table_page("bp_frames", "BP Frame Tracker")
