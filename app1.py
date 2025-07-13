@@ -31,14 +31,20 @@ WORKSHEET_MAP = {
 st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", layout="wide")
 
 # Inject favicon manually for mobile (base64 inline)
-favicon_path = "favicon.ico"
-if os.path.exists(favicon_path):
-    with open(favicon_path, "rb") as f:
+# Inject favicon and Apple Touch Icon
+if os.path.exists("favicon.ico"):
+    with open("favicon.ico", "rb") as f:
         favicon_b64 = base64.b64encode(f.read()).decode()
-        st.markdown(f"""
-            <link rel="shortcut icon" type="image/x-icon" href="data:image/x-icon;base64,{favicon_b64}">
-            <link rel="apple-touch-icon" sizes="180x180" href="data:image/x-icon;base64,{favicon_b64}">
-        """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+        <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,{favicon_b64}">
+        <link rel="shortcut icon" href="data:image/x-icon;base64,{favicon_b64}">
+        <link rel="apple-touch-icon" sizes="180x180" href="data:image/x-icon;base64,{favicon_b64}">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black">
+        <meta name="mobile-web-app-capable" content="yes">
+    """, unsafe_allow_html=True)
+
 
 # ---------- CSS ----------
 st.markdown("""
