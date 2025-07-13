@@ -27,7 +27,7 @@ WORKSHEET_MAP = {
 }
 
 # ---------- SETUP ----------
-st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", layout="wide")
+st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", page_logo="logo.png", layout="wide")
 
 # ---------- CSS ----------
 st.markdown("""
