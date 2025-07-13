@@ -58,10 +58,7 @@ st.markdown("""
         }
         table.custom-table th { background-color: #222; }
         .centered-header {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            text-align: center;
             margin-top: 1rem;
             margin-bottom: 1rem;
         }
@@ -136,7 +133,6 @@ def render_table_page(table, label):
         st.image("logo.png", width=64)
         st.markdown(f"<h1>{label}</h1>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
-
 
     rows, hash_val = get_sheet_data_and_hash(table)
     if st.session_state.get(f"last_hash_{table}") != hash_val:
