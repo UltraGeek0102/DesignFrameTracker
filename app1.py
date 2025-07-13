@@ -132,12 +132,11 @@ def render_table_page(table, label):
 
     # Centered header with logo and title
     with st.container():
-        st.markdown("""
-        <div class='centered-header'>
-            <img src='https://designframetracker.streamlit.app/logo.png' width='64' style='margin-bottom: 0.5rem;'>
-            <h1>{}</h1>
-        </div>
-        """.format(label), unsafe_allow_html=True)
+        st.markdown("<div class='centered-header'>", unsafe_allow_html=True)
+        st.image("logo.png", width=64)
+        st.markdown(f"<h1>{label}</h1>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
 
     rows, hash_val = get_sheet_data_and_hash(table)
     if st.session_state.get(f"last_hash_{table}") != hash_val:
