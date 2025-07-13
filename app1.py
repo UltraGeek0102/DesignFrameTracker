@@ -32,13 +32,13 @@ st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", 
 
 # Inject favicon and apple-touch-icon (fix for iOS Safari and Android Chrome)
 st.markdown("""
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="256x256" href="/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="mobile-web-app-capable" content="yes">
 """, unsafe_allow_html=True)
-
 
 # ---------- CSS ----------
 st.markdown("""
