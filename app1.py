@@ -129,7 +129,7 @@ def render_table_page(table, label):
     rows, hash_val = get_sheet_data_and_hash(table)
     if st.session_state.get(f"last_hash_{table}") != hash_val:
         st.session_state[f"last_hash_{table}"] = hash_val
-        st.experimental_rerun()
+        st.rerun()
 
     # Sidebar for adding frame
     if st.session_state.show_sidebar:
