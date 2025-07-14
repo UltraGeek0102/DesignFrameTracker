@@ -31,11 +31,10 @@ WORKSHEET_MAP = {
 st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", layout="wide")
 
 
-# Inject hosted favicon and Apple touch icon
-# Use hosted PNG as favicon and Apple Touch Icon
+# ✅ Correct GitHub raw links (hosted image content)
 st.markdown("""
-    <link rel="icon" type="image/png" sizes="192x192" href="https://github.com/UltraGeek0102/DesignFrameTracker/blob/main/apple-touch-icon.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="https://github.com/UltraGeek0102/DesignFrameTracker/blob/main/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="https://raw.githubusercontent.com/UltraGeek0102/DesignFrameTracker/main/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/UltraGeek0102/DesignFrameTracker/main/apple-touch-icon.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="mobile-web-app-capable" content="yes">
