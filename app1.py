@@ -31,7 +31,7 @@ WORKSHEET_MAP = {
 st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", layout="wide")
 
 
-# Inject correct favicon and Apple touch icon using GitHub RAW links
+# ✅ Correct raw image URLs from GitHub for favicon + iOS
 st.markdown("""
     <link rel="icon" type="image/png" sizes="192x192" href="https://raw.githubusercontent.com/UltraGeek0102/DesignFrameTracker/main/apple-touch-icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/UltraGeek0102/DesignFrameTracker/main/apple-touch-icon.png">
