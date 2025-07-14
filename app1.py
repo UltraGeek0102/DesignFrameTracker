@@ -31,20 +31,15 @@ WORKSHEET_MAP = {
 st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", layout="wide")
 
 
-# Embed apple-touch-icon as base64
-if os.path.exists("apple-touch-icon.png"):
-    with open("apple-touch-icon.png", "rb") as f:
-        icon_base64 = base64.b64encode(f.read()).decode()
-
-    st.markdown(f"""
-        <link rel="icon" href="/favicon.ico" type="image/x-icon">
-        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
-        <link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,{icon_base64}">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <meta name="mobile-web-app-capable" content="yes">
-    """, unsafe_allow_html=True)
-
+# Inject hosted favicon and Apple touch icon
+# Use hosted PNG as favicon and Apple Touch Icon
+st.markdown("""
+    <link rel="icon" type="image/png" sizes="192x192" href="https://raw.githubusercontent.com/UltraGeek0102/your-repo/main/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/UltraGeek0102/your-repo/main/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="mobile-web-app-capable" content="yes">
+""", unsafe_allow_html=True)
 
 # ---------- CSS ----------
 st.markdown("""
