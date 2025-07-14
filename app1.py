@@ -11,6 +11,18 @@ from google.oauth2.service_account import Credentials
 import hashlib
 import time
 
+# Inline base64 favicon (replace with your own if needed)
+favicon_base64 = "iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAACuCElEQVR4nOx9dbxlZb3+87zvWjtP18ycSWCooUGlpCQUUEysq6JeRUHswLwYYGHcq/4UDEDF1ntNxEBE"
+
+st.markdown(f"""
+    <link rel="icon" type="image/png" href="data:image/png;base64,{favicon_base64}">
+    <link rel="apple-touch-icon" href="data:image/png;base64,{favicon_base64}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="mobile-web-app-capable" content="yes">
+""", unsafe_allow_html=True)
+
+
 # ---------- CONFIG ----------
 SCOPE = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -29,16 +41,6 @@ WORKSHEET_MAP = {
 
 # ---------- SETUP ----------
 st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", layout="wide")
-
-# Inject favicon and apple-touch-icon (fix for iOS Safari and Android Chrome)
-# Inject favicon and Apple Touch Icon with absolute URLs (iOS/Android compatible)
-st.markdown("""
-    <link rel="apple-touch-icon" sizes="180x180" href="https://designframetracker.streamlit.app/apple-touch-icon.png?v=1">
-    <link rel="icon" type="image/png" sizes="256x256" href="https://designframetracker.streamlit.app/favicon.ico?v=1">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="mobile-web-app-capable" content="yes">
-""", unsafe_allow_html=True)
 
 
 # ---------- CSS ----------
