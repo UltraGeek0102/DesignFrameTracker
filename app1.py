@@ -106,6 +106,8 @@ st.markdown("""
             }
             .stButton>button {
                 width: 100%;
+                font-size: 16px;
+                padding: 10px;
             }
             .sticky-footer {
                 position: fixed;
@@ -243,7 +245,7 @@ def render_table_page(table, label):
                     st.cache_data.clear()
                     st.session_state["success_message"] = "Updated successfully."
                     st.rerun()
-                if st.form_submit_button("🖑️ Delete"):
+                if st.form_submit_button("❌ Delete"):
                     delete_frame(table, row)
                     st.cache_data.clear()
                     st.session_state["success_message"] = f"Deleted: {name}"
