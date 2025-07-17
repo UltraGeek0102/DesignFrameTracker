@@ -50,7 +50,7 @@ st.markdown("""
     }
 </script>
 """, unsafe_allow_html=True)
-params = st.experimental_get_query_params()
+params = st.query_params
 if params.get("mobile") == ["1"]:
     st.session_state["mobile"] = True
 
