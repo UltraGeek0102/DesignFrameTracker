@@ -1,4 +1,4 @@
-# Optimized and modular version of your Streamlit Frame Tracker
+# ✅ Mobile-friendly version of Streamlit Frame Tracker
 import streamlit as st
 import gspread
 import pandas as pd
@@ -30,8 +30,7 @@ WORKSHEET_MAP = {
 # ---------- SETUP ----------
 st.set_page_config(page_title="Jubilee Frame Tracker", page_icon="favicon.ico", layout="wide")
 
-
-# ✅ Correct raw image URLs from GitHub for favicon + iOS
+# Inject iOS + favicon
 st.markdown("""
     <link rel="icon" type="image/png" sizes="192x192" href="https://raw.githubusercontent.com/UltraGeek0102/DesignFrameTracker/main/apple-touch-icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/UltraGeek0102/DesignFrameTracker/main/apple-touch-icon.png">
@@ -40,6 +39,20 @@ st.markdown("""
     <meta name="mobile-web-app-capable" content="yes">
 """, unsafe_allow_html=True)
 
+# Inject mobile detection script
+st.markdown("""
+<script>
+    const isMobile = window.innerWidth < 600;
+    if (isMobile) {
+        const params = new URLSearchParams(window.location.search);
+        params.set("mobile", "1");
+        window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
+    }
+</script>
+""", unsafe_allow_html=True)
+params = st.experimental_get_query_params()
+if params.get("mobile") == ["1"]:
+    st.session_state["mobile"] = True
 
 # ---------- CSS ----------
 st.markdown("""
@@ -61,6 +74,7 @@ st.markdown("""
         table.custom-table {
             border-collapse: collapse;
             width: 100%;
+            min-width: 600px;
             color: white;
         }
         table.custom-table th, table.custom-table td {
@@ -73,6 +87,37 @@ st.markdown("""
             text-align: center;
             margin-top: 1rem;
             margin-bottom: 1rem;
+        }
+        @media only screen and (max-width: 600px) {
+            .custom-table td, .custom-table th {
+                font-size: 12px;
+                padding: 4px;
+            }
+            .status-tag {
+                font-size: 12px;
+                padding: 2px 4px;
+            }
+            .scroll-table {
+                max-height: 300px;
+            }
+            input[type="text"], select, button {
+                font-size: 14px !important;
+                width: 100% !important;
+            }
+            .stButton>button {
+                width: 100%;
+            }
+            .sticky-footer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: #111;
+                padding: 10px;
+                text-align: center;
+                z-index: 1000;
+                box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+            }
         }
     </style>
 """, unsafe_allow_html=True)
@@ -91,14 +136,12 @@ def read_frames(table):
     values = ws.get_all_values()
     if not values or len(values) < 2:
         return []
-
     headers = [h.strip().lower() for h in values[0]]
     data_rows = values[1:]
     hmap = {h: i for i, h in enumerate(headers)}
     if "frame name" not in hmap or "status" not in hmap:
         st.error("Missing required headers: 'Frame Name' or 'Status'")
         return []
-
     return [(i+2, row[hmap["frame name"]], row[hmap["status"]])
             for i, row in enumerate(data_rows)
             if len(row) > max(hmap["frame name"], hmap["status"]) and row[hmap["frame name"]] and row[hmap["status"]]]
@@ -139,7 +182,6 @@ def render_table_page(table, label):
     if "success_message" in st.session_state:
         st.success(st.session_state.pop("success_message"))
 
-    # Inject base64-encoded logo
     with open("logo.png", "rb") as f:
         encoded = base64.b64encode(f.read()).decode()
         logo_html = f"""
@@ -196,22 +238,16 @@ def render_table_page(table, label):
                 st.markdown(f"<tr><td>{name}</td><td>{status_tag(status)}</td><td>", unsafe_allow_html=True)
                 new_name = st.text_input("", value=name, label_visibility="collapsed", key=f"edit_name_{row}_{table}")
                 new_status = st.selectbox("", ["InHouse", "OutHouse", "InRepair"], index=["InHouse", "OutHouse", "InRepair"].index(status), label_visibility="collapsed", key=f"edit_status_{row}_{table}")
-                save_col, delete_col = st.columns([1, 1])
-                save_clicked = save_col.form_submit_button("💾 Save")
-                delete_clicked = delete_col.form_submit_button("🖑️ Delete")
-
-                if save_clicked:
+                if st.form_submit_button("💾 Save"):
                     update_frame(table, row, new_name, new_status)
                     st.cache_data.clear()
                     st.session_state["success_message"] = "Updated successfully."
                     st.rerun()
-
-                if delete_clicked:
+                if st.form_submit_button("🖑️ Delete"):
                     delete_frame(table, row)
                     st.cache_data.clear()
                     st.session_state["success_message"] = f"Deleted: {name}"
                     st.rerun()
-
                 st.markdown("</td></tr>", unsafe_allow_html=True)
         st.markdown("</tbody></table></div>", unsafe_allow_html=True)
     else:
